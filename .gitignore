@@ -1,0 +1,18 @@
+.atl/
+.tooling/
+.gradle-user/
+
+# Local Android and Gradle state
+local.properties
+.gradle/
+.kotlin/
+.idea/
+*.iml
+NUL
+
+# Generated build output
+build/
+**/build/
+
+# Local code intelligence index
+.codegraph/
