@@ -1,10 +1,13 @@
 package com.saldoclaro.finance.feature.dashboard
 
+import com.saldoclaro.finance.domain.model.Budget
 import com.saldoclaro.finance.domain.model.MonthTotals
 import com.saldoclaro.finance.domain.model.Transaction
 import com.saldoclaro.finance.domain.model.TransactionDraft
 import com.saldoclaro.finance.domain.model.TransactionType
+import com.saldoclaro.finance.domain.repository.BudgetRepository
 import com.saldoclaro.finance.domain.repository.TransactionRepository
+import com.saldoclaro.finance.domain.usecase.BudgetState
 import java.time.Clock
 import java.time.Instant
 import java.time.LocalDate
@@ -25,93 +28,133 @@ class DashboardViewModelTest {
     private val localCurrentMonth = YearMonth.of(2026, 3)
 
     @Test
-    fun `fixed clock and zone show only local current month exact cents`() = runBlocking {
-        val income = transaction("income", TransactionType.INCOME, 50_000L, LocalDate.of(2026, 3, 1))
-        val expense = transaction("expense", TransactionType.EXPENSE, 12_345L, LocalDate.of(2026, 3, 31))
-        val otherMonth = transaction("future", TransactionType.INCOME, 90_000L, LocalDate.of(2026, 4, 1))
-        val repository = FakeTransactionRepository(listOf(income, expense, otherMonth))
+    fun `dashboard stays loading until both current month sources emit`() = runBlocking {
+        val transactions = ControlledTransactionRepository()
+        val budgets = ControlledBudgetRepository()
+        val viewModel = viewModel(transactions, budgets)
 
-        val state = content(viewModel(repository).state.value)
+        assertTrue(viewModel.state.value is DashboardUiState.Loading)
 
-        assertEquals(localCurrentMonth, repository.observedMonths.single())
-        assertEquals(50_000L, state.totals.incomeCents)
-        assertEquals(12_345L, state.totals.expenseCents)
-        assertEquals(37_655L, state.totals.balanceCents)
-        assertEquals(setOf(income, expense), state.recentActivity.toSet())
-    }
+        transactions.publish(emptyList())
+        assertTrue(viewModel.state.value is DashboardUiState.Loading)
 
-    @Test
-    fun `empty local current month exposes explicit zero totals`() = runBlocking {
-        val otherMonth = transaction("future", TransactionType.EXPENSE, 90_000L, LocalDate.of(2026, 4, 1))
-
-        val state = empty(viewModel(FakeTransactionRepository(listOf(otherMonth))).state.value)
-
-        assertEquals(MonthTotals(incomeCents = 0L, expenseCents = 0L), state.totals)
+        budgets.publish(emptyList())
+        val state = content(viewModel.state.value)
+        assertEquals(MonthTotals(0L, 0L), state.totals)
         assertEquals(emptyList<Transaction>(), state.recentActivity)
+        assertEquals(DashboardBudgetOverview.NoBudgets, state.budgetOverview)
     }
 
     @Test
-    fun `read failure clears stale totals and retry loads fresh totals`() = runBlocking {
+    fun `fixed clock and zone show ordered local month totals and budget progress`() = runBlocking {
+        val income = transaction("income", TransactionType.INCOME, 10_000L, LocalDate.of(2026, 3, 1))
+        val firstExpense = transaction("first-expense", TransactionType.EXPENSE, 2_500L, LocalDate.of(2026, 3, 15))
+        val lastExpense = transaction("last-expense", TransactionType.EXPENSE, 500L, LocalDate.of(2026, 3, 31))
+        val transactions = ControlledTransactionRepository()
+        val budgets = ControlledBudgetRepository()
+        val viewModel = viewModel(transactions, budgets)
+
+        transactions.publish(
+            listOf(
+                transaction("outside-before", TransactionType.EXPENSE, 90_000L, LocalDate.of(2026, 2, 28)),
+                income,
+                firstExpense,
+                lastExpense,
+                transaction("outside-after", TransactionType.INCOME, 90_000L, LocalDate.of(2026, 4, 1)),
+            ),
+        )
+        assertTrue(viewModel.state.value is DashboardUiState.Loading)
+
+        budgets.publish(listOf(Budget("groceries", localCurrentMonth, 3_000L)))
+        val state = content(viewModel.state.value)
+
+        assertEquals(localCurrentMonth, transactions.observedMonths.single())
+        assertEquals(localCurrentMonth, budgets.observedMonths.single())
+        assertEquals(MonthTotals(10_000L, 3_000L), state.totals)
+        assertEquals(7_000L, state.totals.balanceCents)
+        assertEquals(listOf(income, firstExpense, lastExpense), state.recentActivity)
+        val progress = (state.budgetOverview as DashboardBudgetOverview.Progress).items.single()
+        assertEquals("groceries", progress.categoryId)
+        assertEquals(BudgetState.AT_LIMIT, progress.state)
+        assertEquals(3_000L, progress.limitCents)
+        assertEquals(3_000L, progress.spentCents)
+        assertEquals(0L, progress.remainingCents)
+    }
+
+    @Test
+    fun `no budgets retains current month totals and activity`() = runBlocking {
+        val activity = transaction("expense", TransactionType.EXPENSE, 2_500L, LocalDate.of(2026, 3, 20))
+        val transactions = ControlledTransactionRepository()
+        val budgets = ControlledBudgetRepository()
+        val viewModel = viewModel(transactions, budgets)
+
+        transactions.publish(listOf(activity))
+        budgets.publish(emptyList())
+
+        val state = content(viewModel.state.value)
+        assertEquals(MonthTotals(0L, 2_500L), state.totals)
+        assertEquals(listOf(activity), state.recentActivity)
+        assertEquals(DashboardBudgetOverview.NoBudgets, state.budgetOverview)
+    }
+
+    @Test
+    fun `either source failure clears dashboard data and retry waits for fresh pair`() = runBlocking {
         val stale = transaction("stale", TransactionType.INCOME, 10_000L, LocalDate.of(2026, 3, 2))
         val fresh = transaction("fresh", TransactionType.EXPENSE, 2_500L, LocalDate.of(2026, 3, 3))
-        val repository = FakeTransactionRepository(listOf(stale))
-        val viewModel = viewModel(repository)
+        val transactions = ControlledTransactionRepository()
+        val budgets = ControlledBudgetRepository()
+        val viewModel = viewModel(transactions, budgets)
+        transactions.publish(listOf(stale))
+        budgets.publish(listOf(Budget("groceries", localCurrentMonth, 5_000L)))
+        assertEquals(MonthTotals(10_000L, 0L), content(viewModel.state.value).totals)
 
-        assertEquals(MonthTotals(incomeCents = 10_000L, expenseCents = 0L), content(viewModel.state.value).totals)
-
-        repository.failRead(IllegalStateException("storage unavailable"))
-
+        budgets.failRead(IllegalStateException("storage unavailable"))
         val failed = error(viewModel.state.value)
         assertTrue(failed.canRetry)
-        assertEquals(MonthTotals(incomeCents = 0L, expenseCents = 0L), failed.totals)
-        assertEquals(emptyList<Transaction>(), failed.recentActivity)
 
-        repository.publish(listOf(fresh))
         viewModel.retry()
+        assertTrue(viewModel.state.value is DashboardUiState.Loading)
+        transactions.publish(listOf(fresh))
+        assertTrue(viewModel.state.value is DashboardUiState.Loading)
+        budgets.publish(listOf(Budget("groceries", localCurrentMonth, 3_000L)))
 
         val recovered = content(viewModel.state.value)
-        assertEquals(MonthTotals(incomeCents = 0L, expenseCents = 2_500L), recovered.totals)
+        assertEquals(MonthTotals(0L, 2_500L), recovered.totals)
         assertEquals(-2_500L, recovered.totals.balanceCents)
         assertEquals(listOf(fresh), recovered.recentActivity)
     }
 
-    private fun viewModel(repository: TransactionRepository) = DashboardViewModel(
-        repository = repository,
+    private fun viewModel(
+        transactions: TransactionRepository,
+        budgets: BudgetRepository,
+    ) = DashboardViewModel(
+        transactionRepository = transactions,
+        budgetRepository = budgets,
         clock = clock,
         zone = zone,
         dispatcher = Dispatchers.Unconfined,
     )
 
-    private fun transaction(id: String, type: TransactionType, amountCents: Long, localDate: LocalDate) = Transaction(
-        id = id,
-        type = type,
-        amountCents = amountCents,
-        categoryId = "category",
-        localDate = localDate,
-    )
+    private fun transaction(
+        id: String,
+        type: TransactionType,
+        amountCents: Long,
+        localDate: LocalDate,
+    ) = Transaction(id, type, amountCents, "groceries", localDate)
 
     private fun content(state: DashboardUiState): DashboardUiState.Content {
         assertTrue("Expected dashboard content but was $state", state is DashboardUiState.Content)
         return state as DashboardUiState.Content
     }
 
-    private fun empty(state: DashboardUiState): DashboardUiState.Empty {
-        assertTrue("Expected an empty dashboard but was $state", state is DashboardUiState.Empty)
-        return state as DashboardUiState.Empty
-    }
-
     private fun error(state: DashboardUiState): DashboardUiState.Error {
-        assertTrue("Expected a recoverable dashboard error but was $state", state is DashboardUiState.Error)
+        assertTrue("Expected recoverable dashboard error but was $state", state is DashboardUiState.Error)
         return state as DashboardUiState.Error
     }
 
-    private class FakeTransactionRepository(initial: List<Transaction>) : TransactionRepository {
-        private val events = MutableSharedFlow<ReadEvent>(replay = 1)
+    private class ControlledTransactionRepository : TransactionRepository {
+        private val events = MutableSharedFlow<ReadEvent>(extraBufferCapacity = 16)
         val observedMonths = mutableListOf<YearMonth>()
-
-        init {
-            publish(initial)
-        }
 
         override fun observeMonth(month: YearMonth): Flow<List<Transaction>> {
             observedMonths += month
@@ -123,23 +166,46 @@ class DashboardViewModelTest {
             }
         }
 
-        fun publish(transactions: List<Transaction>) = publish(ReadEvent.Data(transactions))
+        fun publish(transactions: List<Transaction>) = events.tryEmit(ReadEvent.Data(transactions))
 
-        fun failRead(error: Throwable) = publish(ReadEvent.Failure(error))
+        fun failRead(error: Throwable) = events.tryEmit(ReadEvent.Failure(error))
 
         override suspend fun save(draft: TransactionDraft): Result<Transaction> =
-            throw UnsupportedOperationException("Dashboard does not save transactions")
+            error("Dashboard does not save transactions")
 
         override suspend fun delete(id: String): Result<Unit> =
-            throw UnsupportedOperationException("Dashboard does not delete transactions")
+            error("Dashboard does not delete transactions")
+    }
 
-        private fun publish(event: ReadEvent) {
-            check(events.tryEmit(event))
+    private class ControlledBudgetRepository : BudgetRepository {
+        private val events = MutableSharedFlow<BudgetReadEvent>(extraBufferCapacity = 16)
+        val observedMonths = mutableListOf<YearMonth>()
+
+        override fun observeMonth(month: YearMonth): Flow<List<Budget>> {
+            observedMonths += month
+            return events.map { event ->
+                when (event) {
+                    is BudgetReadEvent.Data -> event.budgets.filter { it.month == month }
+                    is BudgetReadEvent.Failure -> throw event.error
+                }
+            }
         }
+
+        fun publish(budgets: List<Budget>) = events.tryEmit(BudgetReadEvent.Data(budgets))
+
+        fun failRead(error: Throwable) = events.tryEmit(BudgetReadEvent.Failure(error))
+
+        override suspend fun save(categoryId: String, month: YearMonth, limitCents: Long): Result<Unit> =
+            Result.success(Unit)
     }
 
     private sealed interface ReadEvent {
         data class Data(val transactions: List<Transaction>) : ReadEvent
         data class Failure(val error: Throwable) : ReadEvent
+    }
+
+    private sealed interface BudgetReadEvent {
+        data class Data(val budgets: List<Budget>) : BudgetReadEvent
+        data class Failure(val error: Throwable) : BudgetReadEvent
     }
 }

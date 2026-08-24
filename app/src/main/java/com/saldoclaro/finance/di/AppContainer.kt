@@ -19,7 +19,7 @@ class AppContainer(context: Context) {
     private val transactions = RoomFinanceRepositories(database)
     private val budgets = RoomBudgetRepository(database)
 
-    val dashboardViewModel by lazy { DashboardViewModel(transactions, clock, zone) }
+    val dashboardViewModel by lazy { DashboardViewModel(transactions, budgets, clock, zone) }
     val transactionViewModel by lazy { TransactionViewModel(transactions, YearMonth.from(clock.instant().atZone(zone))) }
     val categoryViewModel by lazy { CategoryViewModel(transactions) }
     val budgetViewModel by lazy { BudgetViewModel(transactions, budgets, clock, zone) }

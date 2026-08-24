@@ -16,9 +16,9 @@ class AppSemanticsTest {
 
     @Test
     fun dashboardEmptyStateHasTextualMeaningIndependentOfPalette() {
-        composeTestRule.onNodeWithText("Income: 0 cents").assertExists()
-        composeTestRule.onNodeWithText("Expenses: 0 cents").assertExists()
-        composeTestRule.onNodeWithText("Balance: 0 cents").assertExists()
+        composeTestRule.onNodeWithContentDescription("Income \$0.00").assertExists()
+        composeTestRule.onNodeWithContentDescription("Expenses \$0.00").assertExists()
+        composeTestRule.onNodeWithContentDescription("Total balance \$0.00").assertExists()
         composeTestRule.onNodeWithText("No transactions this month").assertExists()
     }
 
@@ -36,17 +36,16 @@ class AppSemanticsTest {
             composeTestRule.onNodeWithText(deferredAction).assertDoesNotExist()
         }
 
-        listOf(
-            "Dashboard" to "Income: 0 cents",
-            "Transactions" to "No transactions yet",
-            "Categories" to "Category name",
-            "Budgets" to "Monthly limit",
-        ).forEach { (destination, screenText) ->
-            composeTestRule
-                .onNodeWithContentDescription("Navigate to $destination")
-                .performClick()
+        composeTestRule.onNodeWithContentDescription("Navigate to Dashboard").performClick()
+        composeTestRule.onNodeWithContentDescription("Total balance \$0.00").assertExists()
 
-            composeTestRule.onNodeWithText(screenText).assertExists()
-        }
+        composeTestRule.onNodeWithContentDescription("Navigate to Transactions").performClick()
+        composeTestRule.onNodeWithText("No transactions yet").assertExists()
+
+        composeTestRule.onNodeWithContentDescription("Navigate to Categories").performClick()
+        composeTestRule.onNodeWithText("Category name").assertExists()
+
+        composeTestRule.onNodeWithContentDescription("Navigate to Budgets").performClick()
+        composeTestRule.onNodeWithText("Save limit").assertExists()
     }
 }
