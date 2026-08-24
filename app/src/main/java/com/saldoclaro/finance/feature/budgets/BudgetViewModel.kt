@@ -2,14 +2,12 @@ package com.saldoclaro.finance.feature.budgets
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.saldoclaro.finance.domain.model.Budget
-import com.saldoclaro.finance.domain.model.Transaction
-import com.saldoclaro.finance.domain.model.TransactionType
 import com.saldoclaro.finance.domain.repository.BudgetRepository
 import com.saldoclaro.finance.domain.repository.TransactionRepository
+import com.saldoclaro.finance.domain.usecase.BudgetProgressItem
 import com.saldoclaro.finance.domain.usecase.BudgetState
-import com.saldoclaro.finance.domain.usecase.calculateBudgetProgress
 import com.saldoclaro.finance.domain.usecase.currentMonth
+import com.saldoclaro.finance.domain.usecase.projectBudgetProgress
 import java.time.Clock
 import java.time.ZoneId
 import kotlinx.coroutines.CancellationException
@@ -24,14 +22,6 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.launch
 
 enum class BudgetField { LIMIT }
-
-data class BudgetProgressItem(
-    val categoryId: String,
-    val state: BudgetState,
-    val limitCents: Long?,
-    val spentCents: Long,
-    val remainingCents: Long?,
-)
 
 sealed interface BudgetUiState {
     data class Content(val progress: List<BudgetProgressItem>) : BudgetUiState
@@ -85,7 +75,7 @@ class BudgetViewModel(
         observation = viewModelScope.launch(dispatcher) {
             try {
                 combine(transactionRepository.observeMonth(month), budgetRepository.observeMonth(month)) { transactions, budgets ->
-                    transactions.toProgress(budgets)
+                    projectBudgetProgress(transactions, budgets)
                 }.collect { _state.value = BudgetUiState.Content(it) }
             } catch (error: Throwable) {
                 if (error is CancellationException) throw error
@@ -96,18 +86,6 @@ class BudgetViewModel(
 
     private fun showError(error: Throwable, canRetry: Boolean) {
         _state.value = BudgetUiState.Error(error.message ?: "Budget data unavailable", emptyList(), canRetry)
-    }
-}
-
-private fun List<Transaction>.toProgress(budgets: List<Budget>): List<BudgetProgressItem> {
-    val spent = filter { it.type == TransactionType.EXPENSE }.groupBy { it.categoryId }
-        .mapValues { (_, records) -> records.sumOf { it.amountCents } }
-    val limits = budgets.associateBy { it.categoryId }
-    return (spent.keys + limits.keys).sorted().map { categoryId ->
-        val limitCents = limits[categoryId]?.limitCents
-        val spentCents = spent[categoryId] ?: 0L
-        val progress = calculateBudgetProgress(limitCents, spentCents)
-        BudgetProgressItem(categoryId, progress.state, limitCents, spentCents, progress.remainingCents)
     }
 }
 

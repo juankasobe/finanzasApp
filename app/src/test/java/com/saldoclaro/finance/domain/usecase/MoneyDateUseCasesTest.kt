@@ -1,10 +1,12 @@
 package com.saldoclaro.finance.domain.usecase
 
+import com.saldoclaro.finance.domain.model.Budget
 import com.saldoclaro.finance.domain.model.Transaction
 import com.saldoclaro.finance.domain.model.TransactionType
 import java.time.Clock
 import java.time.Instant
 import java.time.LocalDate
+import java.time.YearMonth
 import java.time.ZoneId
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertThrows
@@ -53,11 +55,58 @@ class MoneyDateUseCasesTest {
         assertEquals(BudgetState.OVER, calculateBudgetProgress(1_000, 1_001).state)
     }
 
-    private fun transaction(type: TransactionType, cents: Long, date: LocalDate) = Transaction(
+    @Test
+    fun `projectBudgetProgress orders categories and preserves signed boundaries`() {
+        val progress = projectBudgetProgress(
+            transactions = listOf(
+                transaction(TransactionType.EXPENSE, 1_000, LocalDate.of(2026, 3, 2), "over"),
+                transaction(TransactionType.EXPENSE, 1_000, LocalDate.of(2026, 3, 3), "under"),
+                transaction(TransactionType.EXPENSE, 1_000, LocalDate.of(2026, 3, 4), "at-limit"),
+                transaction(TransactionType.EXPENSE, 250, LocalDate.of(2026, 3, 5), "expense-only"),
+                transaction(TransactionType.INCOME, 99_999, LocalDate.of(2026, 3, 6), "income-only"),
+            ),
+            budgets = listOf(
+                Budget("under", YearMonth.of(2026, 3), 1_001),
+                Budget("at-limit", YearMonth.of(2026, 3), 1_000),
+                Budget("over", YearMonth.of(2026, 3), 999),
+                Budget("budget-only", YearMonth.of(2026, 3), 5_000),
+            ),
+        )
+
+        assertEquals(
+            listOf("at-limit", "budget-only", "expense-only", "over", "under"),
+            progress.map { it.categoryId },
+        )
+        assertProgress(progress[0], BudgetState.AT_LIMIT, 1_000, 1_000, 0)
+        assertProgress(progress[1], BudgetState.UNDER, 5_000, 0, 5_000)
+        assertProgress(progress[2], BudgetState.NO_BUDGET, null, 250, null)
+        assertProgress(progress[3], BudgetState.OVER, 999, 1_000, -1)
+        assertProgress(progress[4], BudgetState.UNDER, 1_001, 1_000, 1)
+    }
+
+    private fun assertProgress(
+        actual: BudgetProgressItem,
+        state: BudgetState,
+        limitCents: Long?,
+        spentCents: Long,
+        remainingCents: Long?,
+    ) {
+        assertEquals(state, actual.state)
+        assertEquals(limitCents, actual.limitCents)
+        assertEquals(spentCents, actual.spentCents)
+        assertEquals(remainingCents, actual.remainingCents)
+    }
+
+    private fun transaction(
+        type: TransactionType,
+        cents: Long,
+        date: LocalDate,
+        categoryId: String = "category",
+    ) = Transaction(
         id = "transaction-$cents",
         type = type,
         amountCents = cents,
-        categoryId = "category",
+        categoryId = categoryId,
         localDate = date,
     )
 }

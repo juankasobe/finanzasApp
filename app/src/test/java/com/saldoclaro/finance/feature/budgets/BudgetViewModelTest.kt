@@ -6,6 +6,7 @@ import com.saldoclaro.finance.domain.model.TransactionDraft
 import com.saldoclaro.finance.domain.model.TransactionType
 import com.saldoclaro.finance.domain.repository.BudgetRepository
 import com.saldoclaro.finance.domain.repository.TransactionRepository
+import com.saldoclaro.finance.domain.usecase.BudgetProgressItem
 import com.saldoclaro.finance.domain.usecase.BudgetState
 import java.time.Clock
 import java.time.Instant
@@ -35,6 +36,7 @@ class BudgetViewModelTest {
                 transaction("at-expense", TransactionType.EXPENSE, 4_000L, "at-limit"),
                 transaction("over-expense", TransactionType.EXPENSE, 6_001L, "over"),
                 transaction("none-expense", TransactionType.EXPENSE, 1_500L, "no-budget"),
+                transaction("income-only", TransactionType.INCOME, 25_000L, "income-only"),
                 transaction("other-month", TransactionType.EXPENSE, 90_000L, "under", LocalDate.of(2026, 4, 1)),
             ),
         )
@@ -46,7 +48,8 @@ class BudgetViewModelTest {
 
         assertEquals(localCurrentMonth, transactions.observedMonths.single())
         assertEquals(localCurrentMonth, budgets.observedMonths.single())
-        assertEquals(setOf("under", "at-limit", "over", "no-budget"), progress.keys)
+        assertEquals(listOf("at-limit", "no-budget", "over", "under"), progress.keys.toList())
+        assertTrue("Income-only categories must not create progress", "income-only" !in progress)
         assertProgress(progress.getValue("under"), BudgetState.UNDER, 10_000L, 3_000L, 7_000L)
         assertProgress(progress.getValue("at-limit"), BudgetState.AT_LIMIT, 4_000L, 4_000L, 0L)
         assertProgress(progress.getValue("over"), BudgetState.OVER, 6_000L, 6_001L, -1L)

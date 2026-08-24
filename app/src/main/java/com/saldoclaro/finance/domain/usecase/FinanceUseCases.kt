@@ -1,5 +1,6 @@
 package com.saldoclaro.finance.domain.usecase
 
+import com.saldoclaro.finance.domain.model.Budget
 import com.saldoclaro.finance.domain.model.MonthTotals
 import com.saldoclaro.finance.domain.model.Transaction
 import com.saldoclaro.finance.domain.model.TransactionType
@@ -11,6 +12,14 @@ import java.time.ZoneId
 enum class BudgetState { NO_BUDGET, UNDER, AT_LIMIT, OVER }
 
 data class BudgetProgress(val state: BudgetState, val remainingCents: Long?)
+
+data class BudgetProgressItem(
+    val categoryId: String,
+    val state: BudgetState,
+    val limitCents: Long?,
+    val spentCents: Long,
+    val remainingCents: Long?,
+)
 
 fun requirePositiveCents(cents: Long): Long = cents.also {
     require(it > 0) { "Cents must be positive" }
@@ -44,4 +53,22 @@ fun calculateBudgetProgress(limitCents: Long?, expenseCents: Long): BudgetProgre
         else -> BudgetState.OVER
     }
     return BudgetProgress(state, remaining)
+}
+
+fun projectBudgetProgress(
+    transactions: List<Transaction>,
+    budgets: List<Budget>,
+): List<BudgetProgressItem> {
+    val spent = transactions
+        .filter { it.type == TransactionType.EXPENSE }
+        .groupBy { it.categoryId }
+        .mapValues { (_, records) -> records.sumOf { it.amountCents } }
+    val limits = budgets.associateBy { it.categoryId }
+
+    return (spent.keys + limits.keys).sorted().map { categoryId ->
+        val limitCents = limits[categoryId]?.limitCents
+        val spentCents = spent[categoryId] ?: 0L
+        val progress = calculateBudgetProgress(limitCents, spentCents)
+        BudgetProgressItem(categoryId, progress.state, limitCents, spentCents, progress.remainingCents)
+    }
 }
