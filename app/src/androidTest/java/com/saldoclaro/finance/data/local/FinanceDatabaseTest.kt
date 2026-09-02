@@ -32,8 +32,14 @@ class FinanceDatabaseTest {
     fun builtInCategoriesAreSeededWithStableIds() = runBlocking {
         val categories = database.categoryDao().observeAll().first()
 
-        assertTrue(categories.any { it.id == "builtin-groceries" && it.isBuiltIn })
-        assertTrue(categories.any { it.id == "builtin-salary" && it.isBuiltIn })
+        val groceries = categories.single { it.id == "builtin-groceries" }
+        val salary = categories.single { it.id == "builtin-salary" }
+        assertTrue(groceries.isBuiltIn)
+        assertEquals("Supermercado", groceries.name)
+        assertEquals("groceries", groceries.normalizedName)
+        assertTrue(salary.isBuiltIn)
+        assertEquals("Salario", salary.name)
+        assertEquals("salary", salary.normalizedName)
     }
 
     @Test

@@ -1,4 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">finanzasApp</string>
+    <string name="category_groceries">Supermercado</string>
+    <string name="category_salary">Salario</string>
+    <string name="error_data_unavailable">No se pudieron cargar los datos.</string>
+    <string name="error_operation_failed">No se pudo completar la operación.</string>
+    <string name="error_target_unavailable">El elemento ya no está disponible.</string>
+    <string name="error_invalid_amount">Ingresa un importe positivo con hasta dos decimales.</string>
 </resources>
