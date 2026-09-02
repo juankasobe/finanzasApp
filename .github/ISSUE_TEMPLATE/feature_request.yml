@@ -1,0 +1,64 @@
+name: Feature request
+description: Propose an improvement to Saldo Claro.
+title: "feat: "
+labels:
+  - enhancement
+  - "status:needs-review"
+body:
+  - type: checkboxes
+    id: preflight
+    attributes:
+      label: Pre-flight checks
+      options:
+        - label: I searched the existing issues and confirmed that this request is not a duplicate.
+          required: true
+        - label: I understand that a maintainer must add `status:approved` before a pull request can be opened.
+          required: true
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: Describe the user need, limitation, or pain point. Focus on the problem rather than implementation details.
+      placeholder: What problem would this change solve, and who does it affect?
+    validations:
+      required: true
+
+  - type: textarea
+    id: solution
+    attributes:
+      label: Proposed solution
+      description: Explain how the feature should behave from the user's perspective.
+      placeholder: Describe the expected behavior and outcome.
+    validations:
+      required: true
+
+  - type: dropdown
+    id: affected-area
+    attributes:
+      label: Affected area
+      description: Select the primary area affected by this request.
+      options:
+        - Dashboard
+        - Transactions
+        - Budgets
+        - Categories
+        - Local data and storage
+        - Navigation, UI, or accessibility
+        - Build, testing, or CI
+        - Documentation
+        - Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: Describe other approaches or workarounds you considered.
+
+  - type: textarea
+    id: context
+    attributes:
+      label: Additional context
+      description: Add mockups, examples, links, or other useful context.

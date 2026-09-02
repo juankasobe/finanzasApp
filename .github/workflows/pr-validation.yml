@@ -1,0 +1,104 @@
+name: PR Validation
+
+"on":
+  pull_request_target:
+    types:
+      - opened
+      - edited
+      - synchronize
+      - reopened
+      - labeled
+      - unlabeled
+
+permissions:
+  issues: read
+  pull-requests: read
+
+concurrency:
+  group: pr-validation-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  validate-metadata:
+    name: Validate PR metadata
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check branch, issue approval, and PR type
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        with:
+          script: |
+            const pr = context.payload.pull_request;
+            const failures = [];
+            const branchPattern = /^(feat|fix|chore|docs|style|refactor|perf|test|build|ci|revert)\/[a-z0-9._-]+$/;
+
+            if (!branchPattern.test(pr.head.ref)) {
+              failures.push(
+                `Branch \`${pr.head.ref}\` is invalid. Rename it to ` +
+                '`type/description` using an allowed type and lowercase `a-z0-9._-` characters.'
+              );
+            }
+
+            const body = pr.body || '';
+            const issuePattern = /\b(?:Closes|Fixes|Resolves)\s+#(\d+)\b/gi;
+            const issueNumbers = [...new Set(
+              [...body.matchAll(issuePattern)].map((match) => Number(match[1]))
+            )];
+
+            if (issueNumbers.length === 0) {
+              failures.push(
+                'Add an issue-closing reference to the PR body, for example `Closes #123`, `Fixes #123`, or `Resolves #123`.'
+              );
+            }
+
+            for (const issueNumber of issueNumbers) {
+              try {
+                const { data: issue } = await github.rest.issues.get({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  issue_number: issueNumber,
+                });
+
+                if (issue.pull_request) {
+                  failures.push(
+                    `#${issueNumber} is a pull request, not an issue. Link an approved issue from this repository.`
+                  );
+                  continue;
+                }
+
+                const issueLabels = issue.labels.map((label) =>
+                  typeof label === 'string' ? label : label.name
+                );
+                if (!issueLabels.includes('status:approved')) {
+                  failures.push(
+                    `Issue #${issueNumber} is not approved. Ask a maintainer to add the \`status:approved\` label before opening the PR.`
+                  );
+                }
+              } catch (error) {
+                if (error.status === 404) {
+                  failures.push(
+                    `Issue #${issueNumber} does not exist in ${context.repo.owner}/${context.repo.repo}. Use a valid local issue number.`
+                  );
+                  continue;
+                }
+                throw error;
+              }
+            }
+
+            const typeLabels = pr.labels
+              .map((label) => label.name)
+              .filter((name) => name.startsWith('type:'));
+
+            if (typeLabels.length !== 1) {
+              const found = typeLabels.length === 0 ? 'none' : typeLabels.join(', ');
+              failures.push(
+                `Apply exactly one \`type:*\` label to the PR. Found: ${found}.`
+              );
+            }
+
+            if (failures.length > 0) {
+              core.setFailed(`PR validation failed:\n- ${failures.join('\n- ')}`);
+            } else {
+              core.info(
+                `PR metadata is valid: branch \`${pr.head.ref}\`, approved issue linkage, and type label \`${typeLabels[0]}\`.`
+              );
+            }

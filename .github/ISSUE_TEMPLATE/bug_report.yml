@@ -1,0 +1,110 @@
+name: Bug report
+description: Report a reproducible problem in Saldo Claro.
+title: "fix: "
+labels:
+  - bug
+  - "status:needs-review"
+body:
+  - type: checkboxes
+    id: preflight
+    attributes:
+      label: Pre-flight checks
+      options:
+        - label: I searched the existing issues and confirmed that this report is not a duplicate.
+          required: true
+        - label: I understand that a maintainer must add `status:approved` before a pull request can be opened.
+          required: true
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Bug description
+      description: Clearly describe the problem and its impact.
+      placeholder: What went wrong?
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Steps to reproduce
+      description: Provide the smallest reliable sequence that reproduces the problem.
+      placeholder: |
+        1. Open ...
+        2. Tap ...
+        3. Observe ...
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+      placeholder: What should have happened?
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+      placeholder: What happened instead?
+    validations:
+      required: true
+
+  - type: dropdown
+    id: operating-system
+    attributes:
+      label: Operating system
+      description: Select the host operating system used when the problem occurred.
+      options:
+        - Windows
+        - WSL
+        - macOS
+        - Linux
+        - Other
+    validations:
+      required: true
+
+  - type: dropdown
+    id: environment
+    attributes:
+      label: Client or environment
+      description: Select the environment where the problem was observed.
+      options:
+        - Physical Android device
+        - Android emulator
+        - Android Studio
+        - Gradle command line
+        - GitHub Actions
+        - Other
+    validations:
+      required: true
+
+  - type: dropdown
+    id: shell
+    attributes:
+      label: Shell
+      options:
+        - bash
+        - zsh
+        - fish
+        - PowerShell
+        - Command Prompt
+        - Other
+        - Not applicable
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Relevant logs
+      description: Paste relevant stack traces or command output. Remove secrets and personal data first.
+      render: text
+
+  - type: textarea
+    id: context
+    attributes:
+      label: Additional context
+      description: Add screenshots, device/API details, workarounds, or other useful context.
