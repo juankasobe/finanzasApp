@@ -28,10 +28,12 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.saldoclaro.finance.R
 import com.saldoclaro.finance.core.designsystem.FinanceCard
 import com.saldoclaro.finance.core.designsystem.FinanceEmptyState
 import com.saldoclaro.finance.core.designsystem.FinanceExpense
@@ -46,6 +48,7 @@ import com.saldoclaro.finance.core.designsystem.RetryableErrorState
 import com.saldoclaro.finance.core.designsystem.categoryPresentationName
 import com.saldoclaro.finance.core.designsystem.formatCents
 import com.saldoclaro.finance.core.designsystem.formatDate
+import com.saldoclaro.finance.data.local.CategoryEntity
 import com.saldoclaro.finance.domain.model.MonthTotals
 import com.saldoclaro.finance.domain.model.Transaction
 import com.saldoclaro.finance.domain.model.TransactionType
@@ -53,7 +56,7 @@ import com.saldoclaro.finance.domain.usecase.BudgetProgressItem
 import com.saldoclaro.finance.domain.usecase.BudgetState
 
 @Composable
-fun DashboardScreen(viewModel: DashboardViewModel) {
+fun DashboardScreen(viewModel: DashboardViewModel, categories: List<CategoryEntity> = emptyList()) {
     val state by viewModel.state.collectAsState()
     Column(
         modifier = Modifier
@@ -69,9 +72,10 @@ fun DashboardScreen(viewModel: DashboardViewModel) {
                 totals = current.totals,
                 transactions = current.recentActivity,
                 budgetOverview = current.budgetOverview,
+                categoryNames = categories.associate { it.id to it.name },
             )
             is DashboardUiState.Error -> RetryableErrorState(
-                message = current.message,
+                reason = current.reason,
                 canRetry = current.canRetry,
                 onRetry = viewModel::retry,
             )
@@ -83,9 +87,9 @@ fun DashboardScreen(viewModel: DashboardViewModel) {
 private fun DashboardLoading() {
     FinanceCard(modifier = Modifier.fillMaxWidth()) {
         CircularProgressIndicator(modifier = Modifier.size(28.dp))
-        Text(text = "Loading dashboard", style = MaterialTheme.typography.titleMedium)
+        Text(text = stringResource(R.string.dashboard_loading_title), style = MaterialTheme.typography.titleMedium)
         Text(
-            text = "Preparing your current month overview.",
+            text = stringResource(R.string.dashboard_loading_message),
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
@@ -97,10 +101,11 @@ private fun DashboardContent(
     totals: MonthTotals,
     transactions: List<Transaction>,
     budgetOverview: DashboardBudgetOverview,
+    categoryNames: Map<String, String>,
 ) {
     FinanceScreenHeader(
-        title = "Dashboard",
-        subtitle = "Your current month at a glance",
+        title = stringResource(R.string.dashboard_title),
+        subtitle = stringResource(R.string.dashboard_subtitle),
     )
     BalanceCard(totals)
     Row(
@@ -108,35 +113,35 @@ private fun DashboardContent(
         horizontalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         DashboardMetric(
-            label = "Income",
+            label = stringResource(R.string.dashboard_income),
             amountCents = totals.incomeCents,
             icon = Icons.Outlined.Add,
             accent = FinanceIncome,
             modifier = Modifier.weight(1f),
         )
         DashboardMetric(
-            label = "Expenses",
+            label = stringResource(R.string.dashboard_expenses),
             amountCents = totals.expenseCents,
             icon = Icons.Outlined.Remove,
             accent = FinanceExpense,
             modifier = Modifier.weight(1f),
         )
     }
-    Text(text = "Budget overview", style = MaterialTheme.typography.titleMedium)
+    Text(text = stringResource(R.string.dashboard_budget_overview), style = MaterialTheme.typography.titleMedium)
     when (budgetOverview) {
         DashboardBudgetOverview.NoBudgets -> FinanceEmptyState(
             icon = Icons.Outlined.Insights,
-            title = "No budgets this month",
-            message = "Set a monthly limit from Budgets to track your spending here.",
+            title = stringResource(R.string.dashboard_no_budgets_title),
+            message = stringResource(R.string.dashboard_no_budgets_message),
         )
-        is DashboardBudgetOverview.Progress -> DashboardBudgetProgress(budgetOverview.items)
+        is DashboardBudgetOverview.Progress -> DashboardBudgetProgress(budgetOverview.items, categoryNames)
     }
-    Text(text = "Recent activity", style = MaterialTheme.typography.titleMedium)
+    Text(text = stringResource(R.string.dashboard_recent_activity), style = MaterialTheme.typography.titleMedium)
     if (transactions.isEmpty()) {
         FinanceEmptyState(
             icon = Icons.Outlined.ReceiptLong,
-            title = "No transactions this month",
-            message = "New activity will appear here as you add it.",
+            title = stringResource(R.string.dashboard_no_transactions_title),
+            message = stringResource(R.string.dashboard_no_transactions_message),
         )
     } else {
         FinanceCard(
@@ -150,7 +155,7 @@ private fun DashboardContent(
                 FinanceTransactionRow(
                     categoryKey = transaction.categoryId,
                     title = transaction.type.presentationName(),
-                    subtitle = "${categoryPresentationName(transaction.categoryId)} - ${formatDate(transaction.localDate)}",
+                    subtitle = "${categoryPresentationName(transaction.categoryId, categoryNames[transaction.categoryId])} - ${formatDate(transaction.localDate)}",
                     amount = transaction.presentationAmount(),
                     amountColor = if (transaction.type == TransactionType.INCOME) FinanceIncome else FinanceExpense,
                 )
@@ -161,14 +166,18 @@ private fun DashboardContent(
 
 @Composable
 private fun BalanceCard(totals: MonthTotals) {
+    val description = stringResource(
+        R.string.dashboard_total_balance_description,
+        formatCents(totals.balanceCents),
+    )
     FinanceCard(
         modifier = Modifier
             .fillMaxWidth()
-            .semantics { contentDescription = "Total balance ${formatCents(totals.balanceCents)}" },
+            .semantics { contentDescription = description },
         containerColor = MaterialTheme.colorScheme.primaryContainer,
     ) {
         Text(
-            text = "Total balance",
+            text = stringResource(R.string.dashboard_total_balance),
             style = MaterialTheme.typography.labelLarge,
             color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.76f),
         )
@@ -178,7 +187,7 @@ private fun BalanceCard(totals: MonthTotals) {
             color = MaterialTheme.colorScheme.onPrimaryContainer,
         )
         Text(
-            text = "Income minus expenses for this month",
+            text = stringResource(R.string.dashboard_balance_description),
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.72f),
         )
@@ -193,8 +202,9 @@ private fun DashboardMetric(
     accent: Color,
     modifier: Modifier = Modifier,
 ) {
+    val description = stringResource(R.string.dashboard_metric_description, label, formatCents(amountCents))
     FinanceCard(
-        modifier = modifier.semantics { contentDescription = "$label ${formatCents(amountCents)}" },
+        modifier = modifier.semantics { contentDescription = description },
         contentPadding = 14.dp,
     ) {
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -224,7 +234,7 @@ private fun DashboardMetric(
 }
 
 @Composable
-private fun DashboardBudgetProgress(progress: List<BudgetProgressItem>) {
+private fun DashboardBudgetProgress(progress: List<BudgetProgressItem>, categoryNames: Map<String, String>) {
     FinanceCard(
         contentPadding = 0.dp,
         verticalArrangement = Arrangement.Top,
@@ -233,15 +243,15 @@ private fun DashboardBudgetProgress(progress: List<BudgetProgressItem>) {
             if (index > 0) {
                 HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
             }
-            BudgetProgressRow(item)
+            BudgetProgressRow(item, categoryNames)
         }
     }
 }
 
 @Composable
-private fun BudgetProgressRow(item: BudgetProgressItem) {
+private fun BudgetProgressRow(item: BudgetProgressItem, categoryNames: Map<String, String>) {
     val status = item.statusPresentation()
-    val categoryName = categoryPresentationName(item.categoryId)
+    val categoryName = categoryPresentationName(item.categoryId, categoryNames[item.categoryId])
     Column(
         modifier = Modifier.padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(10.dp),
@@ -252,7 +262,7 @@ private fun BudgetProgressRow(item: BudgetProgressItem) {
         }
         if (item.limitCents == null) {
             Text(
-                text = "Spent ${formatCents(item.spentCents)} with no monthly limit.",
+                text = stringResource(R.string.dashboard_spent_without_limit, formatCents(item.spentCents)),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -261,16 +271,20 @@ private fun BudgetProgressRow(item: BudgetProgressItem) {
             FinanceProgressBar(
                 fraction = item.spentCents.toFloat() / item.limitCents.toFloat(),
                 color = status.color,
-                description = "$categoryName budget progress: $percentage percent used",
+                description = stringResource(R.string.dashboard_progress_description, categoryName, percentage),
             )
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                 Text(
-                    text = "${formatCents(item.spentCents)} of ${formatCents(item.limitCents)}",
+                    text = stringResource(
+                        R.string.dashboard_amount_of,
+                        formatCents(item.spentCents),
+                        formatCents(item.limitCents),
+                    ),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
                 Text(
-                    text = item.remainingCents?.let(::budgetRemainingLabel).orEmpty(),
+                    text = item.remainingCents?.let { budgetRemainingLabel(it) }.orEmpty(),
                     style = MaterialTheme.typography.bodySmall,
                     color = status.color,
                     fontWeight = FontWeight.Bold,
@@ -280,22 +294,25 @@ private fun BudgetProgressRow(item: BudgetProgressItem) {
     }
 }
 
+@Composable
 private fun BudgetProgressItem.statusPresentation(): BudgetStatus = when (state) {
-    BudgetState.UNDER -> BudgetStatus("Under budget", FinanceIncome)
-    BudgetState.AT_LIMIT -> BudgetStatus("At limit", FinanceWarning)
-    BudgetState.OVER -> BudgetStatus("Over budget", FinanceExpense)
-    BudgetState.NO_BUDGET -> BudgetStatus("No limit", FinanceTextMuted)
+    BudgetState.UNDER -> BudgetStatus(stringResource(R.string.dashboard_status_under), FinanceIncome)
+    BudgetState.AT_LIMIT -> BudgetStatus(stringResource(R.string.dashboard_status_at_limit), FinanceWarning)
+    BudgetState.OVER -> BudgetStatus(stringResource(R.string.dashboard_status_over), FinanceExpense)
+    BudgetState.NO_BUDGET -> BudgetStatus(stringResource(R.string.dashboard_status_no_limit), FinanceTextMuted)
 }
 
+@Composable
 private fun budgetRemainingLabel(remainingCents: Long): String = when {
-    remainingCents > 0 -> "${formatCents(remainingCents)} left"
-    remainingCents == 0L -> "Limit reached"
-    else -> "${formatCents(-remainingCents)} over"
+    remainingCents > 0 -> stringResource(R.string.dashboard_amount_left, formatCents(remainingCents))
+    remainingCents == 0L -> stringResource(R.string.dashboard_limit_reached)
+    else -> stringResource(R.string.dashboard_amount_over, formatCents(-remainingCents))
 }
 
+@Composable
 private fun TransactionType.presentationName(): String = when (this) {
-    TransactionType.INCOME -> "Income"
-    TransactionType.EXPENSE -> "Expense"
+    TransactionType.INCOME -> stringResource(R.string.transaction_type_income)
+    TransactionType.EXPENSE -> stringResource(R.string.transaction_type_expense)
 }
 
 private fun Transaction.presentationAmount(): String = when (type) {

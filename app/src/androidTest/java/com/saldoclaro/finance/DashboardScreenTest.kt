@@ -42,7 +42,7 @@ class DashboardScreenTest {
 
         composeTestRule.setContent { DashboardScreen(viewModel) }
 
-        composeTestRule.onNodeWithText("Loading dashboard").assertExists()
+        composeTestRule.onNodeWithText("Cargando panel").assertExists()
     }
 
     @Test
@@ -59,10 +59,10 @@ class DashboardScreenTest {
         composeTestRule.waitUntil(timeoutMillis = 5_000) {
             viewModel.state.value is DashboardUiState.Content
         }
-        composeTestRule.onNodeWithContentDescription("Income \$0.00").assertExists()
-        composeTestRule.onNodeWithContentDescription("Expenses \$25.00").assertExists()
-        composeTestRule.onNodeWithText("Budget overview").assertExists()
-        composeTestRule.onNodeWithText("No budgets this month").assertExists()
+        composeTestRule.onNodeWithContentDescription("Ingresos 0,00\u00a0US\$").assertExists()
+        composeTestRule.onNodeWithContentDescription("Gastos 25,00\u00a0US\$").assertExists()
+        composeTestRule.onNodeWithText("Resumen de presupuestos").assertExists()
+        composeTestRule.onNodeWithText("No hay presupuestos este mes").assertExists()
     }
 
     @Test
@@ -78,11 +78,11 @@ class DashboardScreenTest {
         composeTestRule.waitUntil(timeoutMillis = 5_000) {
             viewModel.state.value is DashboardUiState.Content
         }
-        composeTestRule.onNodeWithText("Budget overview").assertExists()
-        composeTestRule.onNodeWithText("Groceries").assertExists()
-        composeTestRule.onNodeWithText("Under budget").assertExists()
-        composeTestRule.onNodeWithText("\$25.00 of \$30.00").assertExists()
-        composeTestRule.onNodeWithText("\$5.00 left").assertExists()
+        composeTestRule.onNodeWithText("Resumen de presupuestos").assertExists()
+        composeTestRule.onNodeWithText("Supermercado").assertExists()
+        composeTestRule.onNodeWithText("Dentro del límite").assertExists()
+        composeTestRule.onNodeWithText("25,00\u00a0US\$ de 30,00\u00a0US\$").assertExists()
+        composeTestRule.onNodeWithText("Quedan 5,00\u00a0US\$").assertExists()
     }
 
     @Test
@@ -99,19 +99,20 @@ class DashboardScreenTest {
         composeTestRule.waitUntil(timeoutMillis = 5_000) {
             viewModel.state.value is DashboardUiState.Content
         }
-        composeTestRule.onNodeWithContentDescription("Income \$100.00").assertExists()
+        composeTestRule.onNodeWithContentDescription("Ingresos 100,00\u00a0US\$").assertExists()
 
         transactions.failRead(IllegalStateException("storage unavailable"))
         composeTestRule.waitUntil(timeoutMillis = 5_000) {
             viewModel.state.value is DashboardUiState.Error
         }
-        composeTestRule.onNodeWithText("storage unavailable").assertExists()
-        composeTestRule.onNodeWithContentDescription("Income \$100.00").assertDoesNotExist()
-        composeTestRule.onNodeWithContentDescription("Total balance \$100.00").assertDoesNotExist()
-        composeTestRule.onNodeWithText("Under budget").assertDoesNotExist()
+        composeTestRule.onNodeWithText("No se pudieron cargar los datos.").assertExists()
+        composeTestRule.onNodeWithText("storage unavailable").assertDoesNotExist()
+        composeTestRule.onNodeWithContentDescription("Ingresos 100,00\u00a0US\$").assertDoesNotExist()
+        composeTestRule.onNodeWithContentDescription("Saldo total 100,00\u00a0US\$").assertDoesNotExist()
+        composeTestRule.onNodeWithText("Dentro del límite").assertDoesNotExist()
 
-        composeTestRule.onNodeWithText("Retry").performClick()
-        composeTestRule.onNodeWithText("Loading dashboard").assertExists()
+        composeTestRule.onNodeWithText("Reintentar").performClick()
+        composeTestRule.onNodeWithText("Cargando panel").assertExists()
         transactions.publish(listOf(fresh))
         composeTestRule.runOnIdle { check(viewModel.state.value is DashboardUiState.Loading) }
         budgets.publish(listOf(Budget("groceries", localCurrentMonth, 3_000L)))
@@ -119,9 +120,9 @@ class DashboardScreenTest {
         composeTestRule.waitUntil(timeoutMillis = 5_000) {
             viewModel.state.value is DashboardUiState.Content
         }
-        composeTestRule.onNodeWithContentDescription("Income \$0.00").assertExists()
-        composeTestRule.onNodeWithContentDescription("Expenses \$25.00").assertExists()
-        composeTestRule.onNodeWithContentDescription("Total balance -\$25.00").assertExists()
+        composeTestRule.onNodeWithContentDescription("Ingresos 0,00\u00a0US\$").assertExists()
+        composeTestRule.onNodeWithContentDescription("Gastos 25,00\u00a0US\$").assertExists()
+        composeTestRule.onNodeWithContentDescription("Saldo total -25,00\u00a0US\$").assertExists()
     }
 
     private fun dashboard(

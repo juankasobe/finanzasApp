@@ -38,6 +38,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
@@ -47,6 +48,7 @@ import androidx.compose.ui.unit.dp
 import com.saldoclaro.finance.core.presentation.categoryPresentationName as presentCategoryName
 import com.saldoclaro.finance.core.presentation.formatCents as presentFormatCents
 import com.saldoclaro.finance.core.presentation.formatDate as presentFormatDate
+import com.saldoclaro.finance.R
 import java.time.LocalDate
 import java.util.Locale
 
@@ -170,7 +172,7 @@ fun FinanceTransactionRow(
     amount: String,
     amountColor: Color,
     onDelete: (() -> Unit)? = null,
-    deleteContentDescription: String = "Delete transaction",
+    deleteContentDescription: String? = null,
     modifier: Modifier = Modifier,
 ) {
     Row(
@@ -208,7 +210,7 @@ fun FinanceTransactionRow(
             IconButton(onClick = delete) {
                 Icon(
                     imageVector = Icons.Outlined.DeleteOutline,
-                    contentDescription = deleteContentDescription,
+                    contentDescription = deleteContentDescription ?: stringResource(R.string.transaction_delete),
                     tint = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }

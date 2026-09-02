@@ -14,10 +14,13 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.res.stringResource
+import com.saldoclaro.finance.R
+import com.saldoclaro.finance.core.presentation.UiErrorKey
 
 @Composable
 fun RetryableErrorState(
-    message: String,
+    reason: UiErrorKey,
     canRetry: Boolean,
     onRetry: () -> Unit,
 ) {
@@ -36,12 +39,25 @@ fun RetryableErrorState(
                 tint = MaterialTheme.colorScheme.error,
             )
             Text(
-                text = message,
+                text = stringResource(reason.resourceId),
                 modifier = Modifier.weight(1f),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onErrorContainer,
             )
         }
-        if (canRetry) Button(onClick = onRetry) { Text("Retry") }
+        if (canRetry) Button(onClick = onRetry) { Text(stringResource(R.string.action_retry)) }
     }
+}
+
+@Composable
+fun RetryableErrorState(
+    message: String,
+    canRetry: Boolean,
+    onRetry: () -> Unit,
+) {
+    RetryableErrorState(
+        reason = UiErrorKey.OPERATION_FAILED,
+        canRetry = canRetry,
+        onRetry = onRetry,
+    )
 }

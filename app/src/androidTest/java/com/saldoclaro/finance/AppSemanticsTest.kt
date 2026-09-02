@@ -5,6 +5,7 @@ import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import java.util.Locale
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -16,10 +17,10 @@ class AppSemanticsTest {
 
     @Test
     fun dashboardEmptyStateHasTextualMeaningIndependentOfPalette() {
-        composeTestRule.onNodeWithContentDescription("Income \$0.00").assertExists()
-        composeTestRule.onNodeWithContentDescription("Expenses \$0.00").assertExists()
-        composeTestRule.onNodeWithContentDescription("Total balance \$0.00").assertExists()
-        composeTestRule.onNodeWithText("No transactions this month").assertExists()
+        composeTestRule.onNodeWithContentDescription("Ingresos 0,00\u00a0US\$").assertExists()
+        composeTestRule.onNodeWithContentDescription("Gastos 0,00\u00a0US\$").assertExists()
+        composeTestRule.onNodeWithContentDescription("Saldo total 0,00\u00a0US\$").assertExists()
+        composeTestRule.onNodeWithText("No hay transacciones este mes").assertExists()
     }
 
     @Test
@@ -36,16 +37,28 @@ class AppSemanticsTest {
             composeTestRule.onNodeWithText(deferredAction).assertDoesNotExist()
         }
 
-        composeTestRule.onNodeWithContentDescription("Navigate to Dashboard").performClick()
-        composeTestRule.onNodeWithContentDescription("Total balance \$0.00").assertExists()
+        composeTestRule.onNodeWithContentDescription("Ir a Panel").performClick()
+        composeTestRule.onNodeWithContentDescription("Saldo total 0,00\u00a0US\$").assertExists()
 
-        composeTestRule.onNodeWithContentDescription("Navigate to Transactions").performClick()
-        composeTestRule.onNodeWithText("No transactions yet").assertExists()
+        composeTestRule.onNodeWithContentDescription("Ir a Movimientos").performClick()
+        composeTestRule.onNodeWithText("Aún no hay transacciones").assertExists()
 
-        composeTestRule.onNodeWithContentDescription("Navigate to Categories").performClick()
-        composeTestRule.onNodeWithText("Category name").assertExists()
+        composeTestRule.onNodeWithContentDescription("Ir a Categorías").performClick()
+        composeTestRule.onNodeWithText("Nombre de la categoría").assertExists()
 
-        composeTestRule.onNodeWithContentDescription("Navigate to Budgets").performClick()
-        composeTestRule.onNodeWithText("Save limit").assertExists()
+        composeTestRule.onNodeWithContentDescription("Ir a Presupuestos").performClick()
+        composeTestRule.onNodeWithText("Guardar límite").assertExists()
+    }
+
+    @Test
+    fun applicationKeepsSpanishCopyWhenDeviceUsesUnsupportedLocale() {
+        val originalLocale = Locale.getDefault()
+        try {
+            Locale.setDefault(Locale.US)
+            composeTestRule.onNodeWithContentDescription("Saldo total 0,00\u00a0US\$").assertExists()
+            composeTestRule.onNodeWithText("No hay transacciones este mes").assertExists()
+        } finally {
+            Locale.setDefault(originalLocale)
+        }
     }
 }

@@ -2,6 +2,7 @@ package com.saldoclaro.finance.feature.dashboard
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.saldoclaro.finance.core.presentation.UiErrorKey
 import com.saldoclaro.finance.domain.model.Budget
 import com.saldoclaro.finance.domain.model.MonthTotals
 import com.saldoclaro.finance.domain.model.Transaction
@@ -37,7 +38,7 @@ sealed interface DashboardUiState {
         val recentActivity: List<Transaction>,
         val budgetOverview: DashboardBudgetOverview,
     ) : DashboardUiState
-    data class Error(val message: String, val canRetry: Boolean = true) : DashboardUiState
+    data class Error(val reason: UiErrorKey, val canRetry: Boolean = true) : DashboardUiState
 }
 
 class DashboardViewModel(
@@ -71,7 +72,7 @@ class DashboardViewModel(
                 }.collect { _state.value = it }
             } catch (error: Throwable) {
                 if (error is CancellationException) throw error
-                _state.value = DashboardUiState.Error(error.message ?: "Dashboard data unavailable")
+                _state.value = DashboardUiState.Error(UiErrorKey.DATA_UNAVAILABLE)
             }
         }
     }
