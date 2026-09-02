@@ -1,0 +1,61 @@
+schema: spec-driven
+project: finanzasapp
+artifact_store: hybrid
+execution_mode: interactive
+delivery_strategy: auto-chain
+review_budget_lines: 400
+
+context: |
+  Project: Saldo Claro, a single-module offline Android finance tracker.
+  Stack: Kotlin 2.3.20, AGP 9.3.1, Gradle 9.6.1, Jetpack Compose Material 3, and Room 2.8.4.
+  Architecture: Compose screens with feature ViewModels, domain models/use cases/repositories, Room data access, and manual AppContainer dependency wiring.
+  Testing: JUnit 4 local tests plus AndroidJUnit4 Compose/UI and Room instrumentation tests; all native commands use the proven WSL shell workflow.
+  Conventions: Official Kotlin style, integer cents stored as Long, all user-visible and accessibility-facing application text is Spanish-only; no device-locale adaptation, language selector, locale variants, or active English fallback; technical identifiers, persisted keys, logs, test names, and SDD technical artifacts remain English; user-entered names remain unchanged; app-authored built-in labels display Spanish; and local-only persistence.
+  Repository: Native WSL checkout at /home/juanka/dev/finanzasApp; do not use the superseded /mnt/c/dev/finanzasApp clone.
+
+strict_tdd: true
+
+testing:
+  runner: Gradle Wrapper
+  framework: JUnit 4, AndroidJUnit4, and Jetpack Compose UI Test
+  environment_file: "/home/juanka/.local/share/finanzasapp-android-validation/environment.sh"
+  shell_setup: "source /home/juanka/.local/share/finanzasapp-android-validation/environment.sh"
+  adb_endpoint_cleanup: "env -u ADB_SERVER_SOCKET -u ANDROID_ADB_SERVER_ADDRESS -u ANDROID_ADB_SERVER_PORT"
+  transport: WSL mirrored networking
+  command_convention: "From the repository root, source environment_file in the same Bash shell, then prefix every native SDK ADB or Gradle command with adb_endpoint_cleanup. Invoke gradlew through bash."
+  unit_command: "source /home/juanka/.local/share/finanzasapp-android-validation/environment.sh && env -u ADB_SERVER_SOCKET -u ANDROID_ADB_SERVER_ADDRESS -u ANDROID_ADB_SERVER_PORT bash gradlew test --no-daemon --rerun-tasks --no-build-cache"
+  instrumented_command: "source /home/juanka/.local/share/finanzasapp-android-validation/environment.sh && env -u ADB_SERVER_SOCKET -u ANDROID_ADB_SERVER_ADDRESS -u ANDROID_ADB_SERVER_PORT bash gradlew connectedDebugAndroidTest --no-daemon --rerun-tasks --no-build-cache"
+  build_command: "source /home/juanka/.local/share/finanzasapp-android-validation/environment.sh && env -u ADB_SERVER_SOCKET -u ANDROID_ADB_SERVER_ADDRESS -u ANDROID_ADB_SERVER_PORT bash gradlew assembleDebug --no-daemon --rerun-tasks --no-build-cache"
+  lint_command: "source /home/juanka/.local/share/finanzasapp-android-validation/environment.sh && env -u ADB_SERVER_SOCKET -u ANDROID_ADB_SERVER_ADDRESS -u ANDROID_ADB_SERVER_PORT bash gradlew lintDebug --no-daemon --rerun-tasks --no-build-cache"
+  type_check_command: "source /home/juanka/.local/share/finanzasapp-android-validation/environment.sh && env -u ADB_SERVER_SOCKET -u ANDROID_ADB_SERVER_ADDRESS -u ANDROID_ADB_SERVER_PORT bash gradlew compileDebugKotlin --no-daemon --rerun-tasks --no-build-cache"
+  coverage: unavailable
+  formatter: unavailable
+  connected_precondition: "Run connected tests only when native SDK ADB reports a phone in exact device state; otherwise skip them."
+  runtime_validation: "Validated on 2026-09-01: the JVM baseline passed once in 87 seconds with BUILD SUCCESSFUL. Connected tests were correctly skipped because no phone appeared in exact device state."
+  unsupported_transport: "Do not use legacy adb-wsl-bridge.env, a Python relay, or adb -a."
+
+rules:
+  proposal:
+    - Include rollback plan for risky changes.
+  specs:
+    - Use Given/When/Then for scenarios.
+    - Use RFC 2119 keywords (MUST, SHALL, SHOULD, MAY).
+  design:
+    - Include sequence diagrams for complex flows.
+    - Document architecture decisions with rationale.
+  tasks:
+    - Group by phase and use hierarchical numbering.
+    - Keep tasks completable in one session.
+  apply:
+    guidelines:
+      - Follow the existing feature, domain, data, and design-system boundaries.
+      - Preserve integer-cent monetary representation and offline-only behavior.
+    tdd: true
+    test_command: "source /home/juanka/.local/share/finanzasapp-android-validation/environment.sh && env -u ADB_SERVER_SOCKET -u ANDROID_ADB_SERVER_ADDRESS -u ANDROID_ADB_SERVER_PORT bash gradlew test --no-daemon --rerun-tasks --no-build-cache"
+  verify:
+    test_command: "source /home/juanka/.local/share/finanzasapp-android-validation/environment.sh && env -u ADB_SERVER_SOCKET -u ANDROID_ADB_SERVER_ADDRESS -u ANDROID_ADB_SERVER_PORT bash gradlew test --no-daemon --rerun-tasks --no-build-cache"
+    instrumented_test_command: "source /home/juanka/.local/share/finanzasapp-android-validation/environment.sh && env -u ADB_SERVER_SOCKET -u ANDROID_ADB_SERVER_ADDRESS -u ANDROID_ADB_SERVER_PORT bash gradlew connectedDebugAndroidTest --no-daemon --rerun-tasks --no-build-cache"
+    build_command: "source /home/juanka/.local/share/finanzasapp-android-validation/environment.sh && env -u ADB_SERVER_SOCKET -u ANDROID_ADB_SERVER_ADDRESS -u ANDROID_ADB_SERVER_PORT bash gradlew assembleDebug --no-daemon --rerun-tasks --no-build-cache"
+    coverage_threshold: 0
+  archive:
+    - Warn before merging destructive deltas.
