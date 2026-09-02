@@ -24,10 +24,13 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.res.stringResource
+import androidx.annotation.StringRes
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import com.saldoclaro.finance.R
 import com.saldoclaro.finance.di.AppContainer
 import com.saldoclaro.finance.feature.budgets.BudgetScreen
 import com.saldoclaro.finance.feature.categories.CategoryScreen
@@ -36,15 +39,15 @@ import com.saldoclaro.finance.feature.transactions.TransactionScreen
 
 private data class Destination(
     val route: String,
-    val label: String,
+    @StringRes val label: Int,
     val icon: ImageVector,
 )
 
 private val destinations = listOf(
-    Destination("dashboard", "Dashboard", Icons.Outlined.Dashboard),
-    Destination("transactions", "Transactions", Icons.Outlined.ReceiptLong),
-    Destination("categories", "Categories", Icons.Outlined.Category),
-    Destination("budgets", "Budgets", Icons.Outlined.PieChart),
+    Destination("dashboard", R.string.nav_dashboard, Icons.Outlined.Dashboard),
+    Destination("transactions", R.string.nav_transactions, Icons.Outlined.ReceiptLong),
+    Destination("categories", R.string.nav_categories, Icons.Outlined.Category),
+    Destination("budgets", R.string.nav_budgets, Icons.Outlined.PieChart),
 )
 
 @Composable
@@ -52,6 +55,7 @@ fun SaldoClaroNavHost(container: AppContainer) {
     val navController = rememberNavController()
     val currentRoute by navController.currentBackStackEntryAsState()
     val categoryState by container.categoryViewModel.state.collectAsState()
+    val allCategories = categoryState.categories
     val activeCategories = categoryState.categories.filterNot { it.isArchived }
     var transactionEntryRequest by remember { mutableStateOf(0) }
     Scaffold(
@@ -68,27 +72,29 @@ fun SaldoClaroNavHost(container: AppContainer) {
                 containerColor = MaterialTheme.colorScheme.primary,
                 contentColor = MaterialTheme.colorScheme.onPrimary,
             ) {
-                Icon(Icons.Outlined.Add, contentDescription = "Add transaction")
+                Icon(Icons.Outlined.Add, contentDescription = stringResource(R.string.action_add_transaction))
             }
         },
         bottomBar = {
             NavigationBar(containerColor = MaterialTheme.colorScheme.surface) {
             destinations.forEach { destination ->
+                val label = stringResource(destination.label)
+                val destinationDescription = stringResource(R.string.nav_navigate_to, label)
                 NavigationBarItem(
                     modifier = Modifier.semantics {
-                        contentDescription = "Navigate to ${destination.label}"
+                        contentDescription = destinationDescription
                     },
                     selected = currentRoute?.destination?.route == destination.route,
                     onClick = { navController.navigate(destination.route) { launchSingleTop = true } },
                     icon = { Icon(destination.icon, contentDescription = null) },
-                    label = { Text(destination.label) },
+                    label = { Text(label) },
                 )
             }
             }
         },
     ) { padding ->
         NavHost(navController, "dashboard", Modifier.padding(padding)) {
-            composable("dashboard") { DashboardScreen(container.dashboardViewModel) }
+            composable("dashboard") { DashboardScreen(container.dashboardViewModel, allCategories) }
             composable("transactions") {
                 TransactionScreen(
                     viewModel = container.transactionViewModel,

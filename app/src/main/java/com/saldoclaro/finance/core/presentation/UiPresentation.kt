@@ -16,6 +16,7 @@ private val SPANISH_DATE_FORMAT = DateTimeFormatter.ofPattern("d MMM", SPANISH_L
 internal object UiPresentationResources {
     val categoryGroceries = R.string.category_groceries
     val categorySalary = R.string.category_salary
+    val categoryUnknown = R.string.category_unknown
     val errorDataUnavailable = R.string.error_data_unavailable
     val errorOperationFailed = R.string.error_operation_failed
     val errorTargetUnavailable = R.string.error_target_unavailable
@@ -64,9 +65,5 @@ fun categoryPresentationName(
     val resourceId = categoryResourceId(categoryId)
     if (resourceId != null) return resolveResource(resourceId)
     if (persistedName != null) return persistedName
-    return categoryId.removePrefix("builtin-").removePrefix("custom-")
-        .split('-', '_', ' ')
-        .filter(String::isNotBlank)
-        .joinToString(" ") { word -> word.lowercase(Locale.ROOT).replaceFirstChar { it.uppercase(Locale.ROOT) } }
-        .ifBlank { categoryId }
+    return "Categoría"
 }

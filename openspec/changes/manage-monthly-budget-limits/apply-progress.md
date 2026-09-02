@@ -2,7 +2,7 @@
 
 ## Status
 
-- Work unit: `pr1-presentation-foundation`
+- Work unit: `pr2a-dashboard-shared-copy` (PR1 evidence retained below)
 - Delivery: `auto-chain`, `stacked-to-main`
 - Final runtime objective: work unit `pr1-presentation-foundation`, ordinal 2, generation 2
 - Maintainer-approved reset revision: `sha256:b75a77ce97bcf0eced1448a9682fc956a2db1fdacba249df199e1e32122d3fce`
@@ -58,3 +58,43 @@
 - `app/src/main/java/com/saldoclaro/finance/core/designsystem/FinanceComponents.kt`
 - `app/src/main/java/com/saldoclaro/finance/data/local/FinanceDatabase.kt`
 - `app/src/main/res/values/strings.xml`
+
+## PR2A Status
+
+- Scope validated: shared Spanish resources/presentation, common retry UI, navigation, Dashboard UI/ViewModel, App semantics tests, and Dashboard instrumentation tests.
+- Tasks `1.1`–`1.3` remain complete; tasks `2.1`–`3.3` remain unchecked because this is only PR2A and PR2B is pending.
+- PR2B split is preserved in `stash@{0}` named `pr2b-budget-category-transaction-copy`; it was not applied, inspected, dropped, or modified.
+- Initial inherited compile RED exposed three integration gaps: untyped legacy retry call sites and a future `categoryMetadata` navigation argument. The compatibility error boundary and navigation correction restore the PR2A build without touching PR2B files.
+
+## PR2A TDD Cycle Evidence
+
+| Slice | Test layer | RED | GREEN | TRIANGULATE | REFACTOR |
+|---|---|---|---|---|---|
+| 2.1 partial | App semantics + Dashboard instrumentation sources | Existing aborted-actor edits; no RED history fabricated | Android test sources compile; runtime is typed unavailable | Dashboard contract covers loading, no-budget, progress, and retry recovery | Exact Spanish selectors retained; no broad tags added |
+| 2.2 partial | JVM compile + Compose production path | Inherited compile failure recorded above | Focused JVM tests 8/8 and full JVM suite 22/22 pass | Dashboard/ViewModel and retry recovery exercise alternate states | Legacy callers use safe Spanish fallback; typed Dashboard errors remain |
+| 2.3 partial | Static presentation/resource audit | Existing changed contract, not a new RED claim | `git diff --check` passes and default-only resources compile | US/Japan locale cases and exact semantics remain covered | PR2A stays limited to shared/Dashboard files |
+
+## PR2A Work Unit Evidence
+
+| Evidence | Result |
+|---|---|
+| Focused test command and exact result | `source /home/juanka/.local/share/finanzasapp-android-validation/environment.sh && env -u ADB_SERVER_SOCKET -u ANDROID_ADB_SERVER_ADDRESS -u ANDROID_ADB_SERVER_PORT bash gradlew testDebugUnitTest --tests '*DashboardViewModelTest' --tests '*UiPresentationTest' --no-daemon --rerun-tasks --no-build-cache`: 8/8 passed, `BUILD SUCCESSFUL`. Full `bash gradlew test` suite: 22/22 passed. `compileDebugAndroidTestKotlin`: `BUILD SUCCESSFUL`. |
+| Runtime harness command/scenario and exact result | `adb devices -l` with the required environment cleanup timed out after 120 seconds with no output; no exact `device` state was established, so connected instrumentation was not run or retried. |
+| Rollback boundary | Revert only the PR2A hunks in the nine changed app/test/resource files plus this progress section; preserve the PR1 foundation hunks and leave the PR2B stash untouched. |
+
+## Native Runtime Attempt 4
+
+- Ordinal: `4`
+- Work unit: `pr2a-dashboard-shared-copy`
+- Outcome: `passed`
+- Complete: `true`
+- Next action: `complete`
+- Native revision: `sha256:8f30a0b13a5401a4880d88212f935349588df453996aa14a0fceca3ba7515a97`
+- Evidence revision: `sha256:6552da90646f683f5f269e56535f1a29e4852fe1b85539da2eb6cc8baafa013f`
+- Charged delta: `45` lines
+- Full PR2A diff: `351` lines (`259` additions, `92` deletions)
+- Focused JVM: `8/8 passed`
+- Full JVM: `22/22 passed`
+- `compileDebugAndroidTestKotlin`: passed
+- Instrumentation unavailable: clean `adb devices -l` timed out after 120 seconds with no exact device; not retried.
+- Protected PR2B remains in `stash@{0}` named `pr2b-budget-category-transaction-copy`.
