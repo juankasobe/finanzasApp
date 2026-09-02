@@ -26,15 +26,15 @@ abstract class FinanceDatabase : RoomDatabase() {
 
         private val seedCallback = object : RoomDatabase.Callback() {
             override fun onCreate(db: SupportSQLiteDatabase) {
-                db.execSQL("INSERT INTO categories VALUES ('builtin-groceries', 'Groceries', 'groceries', 1, 0)")
-                db.execSQL("INSERT INTO categories VALUES ('builtin-salary', 'Salary', 'salary', 1, 0)")
+                db.execSQL("INSERT INTO categories VALUES ('builtin-groceries', 'Supermercado', 'groceries', 1, 0)")
+                db.execSQL("INSERT INTO categories VALUES ('builtin-salary', 'Salario', 'salary', 1, 0)")
             }
         }
 
         private fun seedBuiltIns(database: FinanceDatabase) {
             database.openHelper.writableDatabase.apply {
-                execSQL("INSERT INTO categories VALUES ('builtin-groceries', 'Groceries', 'groceries', 1, 0)")
-                execSQL("INSERT INTO categories VALUES ('builtin-salary', 'Salary', 'salary', 1, 0)")
+                execSQL("INSERT INTO categories VALUES ('builtin-groceries', 'Supermercado', 'groceries', 1, 0)")
+                execSQL("INSERT INTO categories VALUES ('builtin-salary', 'Salario', 'salary', 1, 0)")
             }
         }
     }

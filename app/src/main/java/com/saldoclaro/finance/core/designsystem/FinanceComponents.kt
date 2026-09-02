@@ -37,16 +37,17 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import java.math.BigDecimal
-import java.text.NumberFormat
+import com.saldoclaro.finance.core.presentation.categoryPresentationName as presentCategoryName
+import com.saldoclaro.finance.core.presentation.formatCents as presentFormatCents
+import com.saldoclaro.finance.core.presentation.formatDate as presentFormatDate
 import java.time.LocalDate
-import java.time.format.DateTimeFormatter
 import java.util.Locale
 
 @Composable
@@ -238,28 +239,24 @@ fun CategoryIconChip(
     }
 }
 
-fun formatCents(cents: Long): String = NumberFormat.getCurrencyInstance(Locale.US)
-    .format(BigDecimal.valueOf(cents, 2))
+fun formatCents(cents: Long): String = presentFormatCents(cents)
 
-fun formatDate(date: LocalDate): String = date.format(DateTimeFormatter.ofPattern("MMM d", Locale.US))
+fun formatDate(date: LocalDate): String = presentFormatDate(date)
 
-fun categoryPresentationName(categoryId: String): String {
-    val cleaned = categoryId.removePrefix("builtin-").removePrefix("custom-")
-    return cleaned
-        .split('-', '_', ' ')
-        .filter(String::isNotBlank)
-        .joinToString(" ") { word -> word.lowercase(Locale.US).replaceFirstChar { it.uppercase(Locale.US) } }
-        .ifBlank { categoryId }
+@Composable
+fun categoryPresentationName(categoryId: String, persistedName: String? = null): String {
+    val resources = LocalContext.current.resources
+    return presentCategoryName(categoryId, persistedName) { resourceId -> resources.getString(resourceId) }
 }
 
 private data class CategoryVisual(val icon: ImageVector, val color: Color)
 
 private fun categoryVisual(categoryKey: String): CategoryVisual {
-    val key = categoryKey.lowercase(Locale.US)
+    val key = categoryKey.lowercase(Locale.ROOT)
     return when {
-        key.contains("grocer") || key.contains("food") || key.contains("shop") ->
+        key.contains("grocer") || key.contains("supermerc") || key.contains("food") || key.contains("shop") ->
             CategoryVisual(Icons.Outlined.ShoppingBag, FinanceOrange)
-        key.contains("salary") || key.contains("income") ->
+        key.contains("salary") || key.contains("salari") || key.contains("income") ->
             CategoryVisual(Icons.Outlined.AccountBalanceWallet, FinanceIncome)
         key.contains("transport") || key.contains("car") ->
             CategoryVisual(Icons.Outlined.DirectionsCar, FinanceSky)
