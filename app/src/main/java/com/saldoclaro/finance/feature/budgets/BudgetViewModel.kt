@@ -2,6 +2,7 @@ package com.saldoclaro.finance.feature.budgets
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.saldoclaro.finance.core.presentation.UiErrorKey
 import com.saldoclaro.finance.domain.repository.BudgetRepository
 import com.saldoclaro.finance.domain.repository.TransactionRepository
 import com.saldoclaro.finance.domain.usecase.BudgetProgressItem
@@ -26,7 +27,7 @@ enum class BudgetField { LIMIT }
 sealed interface BudgetUiState {
     data class Content(val progress: List<BudgetProgressItem>) : BudgetUiState
     data class Validation(val invalidFields: Set<BudgetField>) : BudgetUiState
-    data class Error(val message: String, val progress: List<BudgetProgressItem>, val canRetry: Boolean = true) : BudgetUiState
+    data class Error(val reason: UiErrorKey, val progress: List<BudgetProgressItem>, val canRetry: Boolean = true) : BudgetUiState
 }
 
 private data class SaveLimit(val categoryId: String, val limitCents: Long)
@@ -65,7 +66,7 @@ class BudgetViewModel(
         viewModelScope.launch(dispatcher) {
             budgetRepository.save(command.categoryId, month, command.limitCents).fold(
                 onSuccess = { pendingSave = null },
-                onFailure = { error -> showError(error, canRetry = true) },
+                onFailure = { showError(UiErrorKey.OPERATION_FAILED, canRetry = true) },
             )
         }
     }
@@ -79,13 +80,13 @@ class BudgetViewModel(
                 }.collect { _state.value = BudgetUiState.Content(it) }
             } catch (error: Throwable) {
                 if (error is CancellationException) throw error
-                showError(error, canRetry = true)
+                showError(UiErrorKey.DATA_UNAVAILABLE, canRetry = true)
             }
         }
     }
 
-    private fun showError(error: Throwable, canRetry: Boolean) {
-        _state.value = BudgetUiState.Error(error.message ?: "Budget data unavailable", emptyList(), canRetry)
+    private fun showError(reason: UiErrorKey, canRetry: Boolean) {
+        _state.value = BudgetUiState.Error(reason, emptyList(), canRetry)
     }
 }
 

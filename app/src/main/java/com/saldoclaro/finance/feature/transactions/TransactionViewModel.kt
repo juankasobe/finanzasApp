@@ -2,6 +2,7 @@ package com.saldoclaro.finance.feature.transactions
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.saldoclaro.finance.core.presentation.UiErrorKey
 import com.saldoclaro.finance.domain.model.Transaction
 import com.saldoclaro.finance.domain.model.TransactionDraft
 import com.saldoclaro.finance.domain.repository.TransactionRepository
@@ -22,7 +23,7 @@ sealed interface TransactionUiState {
     data class Content(val transactions: List<Transaction>) : TransactionUiState
     data class Validation(val invalidFields: Set<TransactionField>, val transactions: List<Transaction>) : TransactionUiState
     data class ConfirmDelete(val transaction: Transaction) : TransactionUiState
-    data class Error(val message: String, val transactions: List<Transaction>, val canRetry: Boolean = true) : TransactionUiState
+    data class Error(val reason: UiErrorKey, val transactions: List<Transaction>, val canRetry: Boolean = true) : TransactionUiState
 }
 
 private sealed interface TransactionMutation {
@@ -54,7 +55,7 @@ class TransactionViewModel(
                 }
             } catch (error: Throwable) {
                 if (error is CancellationException) throw error
-                showError(error)
+                showError(UiErrorKey.DATA_UNAVAILABLE)
             }
         }
     }
@@ -79,7 +80,7 @@ class TransactionViewModel(
         viewModelScope.launch(dispatcher) {
             execute(mutation).fold(
                 onSuccess = { retryMutation.value = null; showActivity() },
-                onFailure = ::showError,
+                onFailure = { showError(UiErrorKey.OPERATION_FAILED) },
             )
         }
     }
@@ -90,7 +91,7 @@ class TransactionViewModel(
     }
 
     private fun showActivity() { _state.value = activity.value.asActivityState() }
-    private fun showError(error: Throwable) { _state.value = TransactionUiState.Error(error.message ?: "Transaction operation failed", activity.value) }
+    private fun showError(reason: UiErrorKey) { _state.value = TransactionUiState.Error(reason, activity.value) }
 }
 
 private fun List<Transaction>.asActivityState(): TransactionUiState =

@@ -1,5 +1,6 @@
 package com.saldoclaro.finance.feature.transactions
 
+import com.saldoclaro.finance.core.presentation.UiErrorKey
 import com.saldoclaro.finance.domain.model.Transaction
 import com.saldoclaro.finance.domain.model.TransactionDraft
 import com.saldoclaro.finance.domain.model.TransactionType
@@ -9,6 +10,7 @@ import java.time.YearMonth
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
@@ -90,7 +92,19 @@ class TransactionViewModelTest {
 
         val error = error(viewModel.state.value)
         assertTrue(error.canRetry)
+        assertEquals(UiErrorKey.OPERATION_FAILED, error.reason)
         assertEquals(listOf(existing), error.transactions)
+    }
+
+    @Test
+    fun `read failure exposes a safe data error instead of its raw message`() = runBlocking {
+        val repository = FakeTransactionRepository().apply {
+            nextReadFailure = IllegalStateException("database table details")
+        }
+
+        val error = error(viewModel(repository).state.value)
+
+        assertEquals(UiErrorKey.DATA_UNAVAILABLE, error.reason)
     }
 
     private fun viewModel(repository: TransactionRepository) =
@@ -132,9 +146,11 @@ class TransactionViewModelTest {
     private class FakeTransactionRepository(initial: List<Transaction> = emptyList()) : TransactionRepository {
         private val transactions = MutableStateFlow(initial)
         var nextSaveFailure: Throwable? = null
+        var nextReadFailure: Throwable? = null
 
-        override fun observeMonth(month: YearMonth): Flow<List<Transaction>> =
-            transactions.map { records -> records.filter { YearMonth.from(it.localDate) == month } }
+        override fun observeMonth(month: YearMonth): Flow<List<Transaction>> = nextReadFailure?.let { failure ->
+            flow { throw failure }
+        } ?: transactions.map { records -> records.filter { YearMonth.from(it.localDate) == month } }
 
         override suspend fun save(draft: TransactionDraft): Result<Transaction> {
             nextSaveFailure?.let { return Result.failure(it) }

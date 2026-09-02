@@ -38,8 +38,10 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
+import com.saldoclaro.finance.R
 import com.saldoclaro.finance.core.designsystem.FinanceCard
 import com.saldoclaro.finance.core.designsystem.FinanceEmptyState
 import com.saldoclaro.finance.core.designsystem.FinanceExpense
@@ -55,11 +57,13 @@ import com.saldoclaro.finance.domain.model.Transaction
 import com.saldoclaro.finance.domain.model.TransactionDraft
 import com.saldoclaro.finance.domain.model.TransactionType
 import java.time.LocalDate
+import java.util.Locale
 
 @Composable
 fun TransactionScreen(
     viewModel: TransactionViewModel,
     categories: List<CategoryEntity>,
+    categoryMetadata: List<CategoryEntity> = categories,
     entryRequest: Int = 0,
 ) {
     val state by viewModel.state.collectAsState()
@@ -68,6 +72,7 @@ fun TransactionScreen(
     var category by remember { mutableStateOf<CategoryEntity?>(null) }
     var date by remember { mutableStateOf(LocalDate.now().toString()) }
     var categoryMenuOpen by remember { mutableStateOf(false) }
+    val categoryNames = categoryMetadata.associate { it.id to it.name }
     val scrollState = rememberScrollState()
 
     LaunchedEffect(entryRequest) {
@@ -83,8 +88,8 @@ fun TransactionScreen(
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
         FinanceScreenHeader(
-            title = "Transactions",
-            subtitle = "Record and review your monthly activity",
+            title = stringResource(R.string.transaction_screen_title),
+            subtitle = stringResource(R.string.transaction_screen_subtitle),
         )
         TransactionEditor(
             type = type,
@@ -110,20 +115,20 @@ fun TransactionScreen(
             },
         )
         when (val current = state) {
-            TransactionUiState.Empty -> TransactionActivity(emptyList(), viewModel::requestDelete)
-            is TransactionUiState.Content -> TransactionActivity(current.transactions, viewModel::requestDelete)
+            TransactionUiState.Empty -> TransactionActivity(emptyList(), viewModel::requestDelete, categoryNames)
+            is TransactionUiState.Content -> TransactionActivity(current.transactions, viewModel::requestDelete, categoryNames)
             is TransactionUiState.Validation -> {
                 ValidationMessage()
-                TransactionActivity(current.transactions, viewModel::requestDelete)
+                TransactionActivity(current.transactions, viewModel::requestDelete, categoryNames)
             }
             is TransactionUiState.ConfirmDelete -> DeleteConfirmation(
                 onConfirm = viewModel::confirmDelete,
                 onDismiss = viewModel::cancelDelete,
             )
             is TransactionUiState.Error -> {
-                TransactionActivity(current.transactions, viewModel::requestDelete)
+                TransactionActivity(current.transactions, viewModel::requestDelete, categoryNames)
                 RetryableErrorState(
-                    message = current.message,
+                    reason = current.reason,
                     canRetry = current.canRetry,
                     onRetry = viewModel::retry,
                 )
@@ -148,13 +153,13 @@ private fun TransactionEditor(
     onSave: () -> Unit,
 ) {
     FinanceCard {
-        Text(text = "New transaction", style = MaterialTheme.typography.titleMedium)
+        Text(text = stringResource(R.string.transaction_new_title), style = MaterialTheme.typography.titleMedium)
         Text(
-            text = "Choose a type, amount, category, and date.",
+            text = stringResource(R.string.transaction_new_description),
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
-        Text(text = "Type", style = MaterialTheme.typography.labelLarge)
+        Text(text = stringResource(R.string.transaction_type_label), style = MaterialTheme.typography.labelLarge)
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -174,7 +179,7 @@ private fun TransactionEditor(
                 )
             }
         }
-        Text(text = "Category", style = MaterialTheme.typography.labelLarge)
+        Text(text = stringResource(R.string.category_label), style = MaterialTheme.typography.labelLarge)
         Box(modifier = Modifier.fillMaxWidth()) {
             OutlinedButton(
                 modifier = Modifier.fillMaxWidth(),
@@ -182,10 +187,12 @@ private fun TransactionEditor(
                 enabled = categories.isNotEmpty(),
             ) {
                 Text(
-                    text = category?.name ?: if (categories.isEmpty()) "No active categories" else "Choose category",
+                    text = category?.let { categoryPresentationName(it.id, it.name) }
+                        ?: if (categories.isEmpty()) stringResource(R.string.no_active_categories)
+                        else stringResource(R.string.choose_category),
                     modifier = Modifier.weight(1f),
                 )
-                Icon(Icons.Outlined.KeyboardArrowDown, contentDescription = "Select category")
+                Icon(Icons.Outlined.KeyboardArrowDown, contentDescription = stringResource(R.string.action_select_category))
             }
             DropdownMenu(
                 expanded = categoryMenuOpen,
@@ -193,7 +200,7 @@ private fun TransactionEditor(
             ) {
                 categories.forEach { option ->
                     DropdownMenuItem(
-                        text = { Text(option.name) },
+                        text = { Text(categoryPresentationName(option.id, option.name)) },
                         onClick = {
                             onCategoryChange(option)
                             onCategoryMenuChange(false)
@@ -206,7 +213,7 @@ private fun TransactionEditor(
             value = amount,
             onValueChange = onAmountChange,
             modifier = Modifier.fillMaxWidth(),
-            label = { Text("Amount") },
+            label = { Text(stringResource(R.string.transaction_amount_label)) },
             singleLine = true,
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
         )
@@ -214,30 +221,34 @@ private fun TransactionEditor(
             value = date,
             onValueChange = onDateChange,
             modifier = Modifier.fillMaxWidth(),
-            label = { Text("Date (YYYY-MM-DD)") },
+            label = { Text(stringResource(R.string.transaction_date_label)) },
             singleLine = true,
             leadingIcon = { Icon(Icons.Outlined.CalendarMonth, contentDescription = null) },
         )
         Button(modifier = Modifier.fillMaxWidth(), onClick = onSave) {
             Icon(Icons.Outlined.Add, contentDescription = null)
             Spacer(modifier = Modifier.size(8.dp))
-            Text("Add transaction")
+            Text(stringResource(R.string.transaction_add))
         }
     }
 }
 
 @Composable
-private fun TransactionActivity(transactions: List<Transaction>, onDelete: (String) -> Unit) {
+private fun TransactionActivity(
+    transactions: List<Transaction>,
+    onDelete: (String) -> Unit,
+    categoryNames: Map<String, String>,
+) {
     if (transactions.isEmpty()) {
         FinanceEmptyState(
             icon = Icons.Outlined.ReceiptLong,
-            title = "No transactions yet",
-            message = "Your activity will appear here after you add a transaction.",
+            title = stringResource(R.string.transaction_empty_title),
+            message = stringResource(R.string.transaction_empty_message),
         )
         return
     }
 
-    Text(text = "Activity", style = MaterialTheme.typography.titleMedium)
+    Text(text = stringResource(R.string.transaction_activity), style = MaterialTheme.typography.titleMedium)
     FinanceCard(
         contentPadding = 0.dp,
         verticalArrangement = Arrangement.Top,
@@ -249,11 +260,14 @@ private fun TransactionActivity(transactions: List<Transaction>, onDelete: (Stri
             FinanceTransactionRow(
                 categoryKey = transaction.categoryId,
                 title = transaction.type.presentationName(),
-                subtitle = "${categoryPresentationName(transaction.categoryId)} - ${formatDate(transaction.localDate)}",
+                subtitle = "${categoryPresentationName(transaction.categoryId, categoryNames[transaction.categoryId])} - ${formatDate(transaction.localDate)}",
                 amount = transaction.presentationAmount(),
                 amountColor = if (transaction.type == TransactionType.INCOME) FinanceIncome else FinanceExpense,
                 onDelete = { onDelete(transaction.id) },
-                deleteContentDescription = "Delete ${transaction.type.presentationName().lowercase()} transaction",
+                deleteContentDescription = stringResource(
+                    R.string.transaction_delete_description,
+                    transaction.type.presentationName().lowercase(Locale.ROOT),
+                ),
             )
         }
     }
@@ -263,7 +277,7 @@ private fun TransactionActivity(transactions: List<Transaction>, onDelete: (Stri
 private fun ValidationMessage() {
     FinanceCard(containerColor = MaterialTheme.colorScheme.errorContainer) {
         Text(
-            text = "Complete the required transaction fields",
+            text = stringResource(R.string.transaction_validation),
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onErrorContainer,
         )
@@ -274,16 +288,17 @@ private fun ValidationMessage() {
 private fun DeleteConfirmation(onConfirm: () -> Unit, onDismiss: () -> Unit) {
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Delete this transaction?") },
-        text = { Text("This action cannot be undone.") },
-        confirmButton = { Button(onClick = onConfirm) { Text("Delete") } },
-        dismissButton = { OutlinedButton(onClick = onDismiss) { Text("Cancel") } },
+        title = { Text(stringResource(R.string.transaction_delete_title)) },
+        text = { Text(stringResource(R.string.transaction_delete_message)) },
+        confirmButton = { Button(onClick = onConfirm) { Text(stringResource(R.string.action_delete)) } },
+        dismissButton = { OutlinedButton(onClick = onDismiss) { Text(stringResource(R.string.action_cancel)) } },
     )
 }
 
+@Composable
 private fun TransactionType.presentationName(): String = when (this) {
-    TransactionType.INCOME -> "Income"
-    TransactionType.EXPENSE -> "Expense"
+    TransactionType.INCOME -> stringResource(R.string.transaction_type_income)
+    TransactionType.EXPENSE -> stringResource(R.string.transaction_type_expense)
 }
 
 private fun Transaction.presentationAmount(): String = when (type) {
