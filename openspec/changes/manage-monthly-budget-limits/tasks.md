@@ -30,9 +30,9 @@ RED → GREEN → REFACTOR, code/tests/docs together; no broken intermediate mer
 
 ## Phase 2: Translated UI and Safe Errors (PR2)
 
-- [ ] 2.1 **RED** — Extend `AppSemanticsTest.kt`, `DashboardScreenTest.kt`, and `TransactionViewModelTest.kt` for Spanish exact visible/accessibility text, transient/terminal/dialog states, unsupported locales, and raw-error disclosure prevention.
-- [ ] 2.2 **GREEN** — Wire `stringResource`/`UiErrorKey` through `SaldoClaroNavHost.kt`, `RetryableErrorState.kt`, `BudgetScreen.kt`, `DashboardScreen.kt`, `TransactionScreen.kt`, `CategoryScreen.kt`, their ViewModels, and `RoomFinanceRepositories.kt`; preserve routes, IDs, logs, and user data.
-- [ ] 2.3 **REFACTOR** — Audit 123 copy sites and exact selectors without broad tags; keep app-authored messages Spanish and semantic.
+- [x] 2.1 **RED** — Extend `AppSemanticsTest.kt`, `DashboardScreenTest.kt`, and `TransactionViewModelTest.kt` for Spanish exact visible/accessibility text, transient/terminal/dialog states, unsupported locales, and raw-error disclosure prevention.
+- [x] 2.2 **GREEN** — Wire `stringResource`/`UiErrorKey` through `SaldoClaroNavHost.kt`, `RetryableErrorState.kt`, `BudgetScreen.kt`, `DashboardScreen.kt`, `TransactionScreen.kt`, `CategoryScreen.kt`, their ViewModels, and `RoomFinanceRepositories.kt`; preserve routes, IDs, logs, and user data.
+- [x] 2.3 **REFACTOR** — Audit 123 copy sites and exact selectors without broad tags; keep app-authored messages Spanish and semantic.
 
 ## Phase 3: Current-Month Budget Management (PR3)
 

@@ -29,13 +29,16 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import com.saldoclaro.finance.R
 import com.saldoclaro.finance.core.designsystem.CategoryIconChip
 import com.saldoclaro.finance.core.designsystem.FinanceCard
 import com.saldoclaro.finance.core.designsystem.FinanceEmptyState
 import com.saldoclaro.finance.core.designsystem.FinanceScreenHeader
 import com.saldoclaro.finance.core.designsystem.FinanceStatusPill
 import com.saldoclaro.finance.core.designsystem.FinanceTextMuted
+import com.saldoclaro.finance.core.designsystem.categoryPresentationName
 import com.saldoclaro.finance.data.local.CategoryEntity
 
 @Composable
@@ -51,18 +54,18 @@ fun CategoryScreen(viewModel: CategoryViewModel) {
     ) {
         item(span = { GridItemSpan(maxLineSpan) }) {
             FinanceScreenHeader(
-                title = "Categories",
-                subtitle = "Keep your spending organized",
+                title = stringResource(R.string.category_screen_title),
+                subtitle = stringResource(R.string.category_screen_subtitle),
             )
         }
         item(span = { GridItemSpan(maxLineSpan) }) {
             FinanceCard {
-                Text(text = "Create a category", style = MaterialTheme.typography.titleMedium)
+                Text(text = stringResource(R.string.category_create_title), style = MaterialTheme.typography.titleMedium)
                 OutlinedTextField(
                     value = name,
                     onValueChange = { name = it },
                     modifier = Modifier.fillMaxWidth(),
-                    label = { Text("Category name") },
+                    label = { Text(stringResource(R.string.category_name_label)) },
                     singleLine = true,
                 )
                 Button(
@@ -70,15 +73,15 @@ fun CategoryScreen(viewModel: CategoryViewModel) {
                     onClick = { viewModel.create(name) { name = "" } },
                 ) {
                     Icon(Icons.Outlined.Add, contentDescription = null)
-                    Text(text = "Add category", modifier = Modifier.padding(start = 8.dp))
+                    Text(text = stringResource(R.string.category_add), modifier = Modifier.padding(start = 8.dp))
                 }
             }
         }
-        state.error?.let { message ->
+        state.error?.let { reason ->
             item(span = { GridItemSpan(maxLineSpan) }) {
                 FinanceCard(containerColor = MaterialTheme.colorScheme.errorContainer) {
                     Text(
-                        text = message,
+                        text = stringResource(reason.resourceId),
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onErrorContainer,
                     )
@@ -89,8 +92,8 @@ fun CategoryScreen(viewModel: CategoryViewModel) {
             item(span = { GridItemSpan(maxLineSpan) }) {
                 FinanceEmptyState(
                     icon = Icons.Outlined.FolderOff,
-                    title = "No categories yet",
-                    message = "Create a category to start organizing your activity.",
+                    title = stringResource(R.string.category_empty_title),
+                    message = stringResource(R.string.category_empty_message),
                 )
             }
         } else {
@@ -114,19 +117,26 @@ private fun CategoryCard(category: CategoryEntity, onArchive: (String) -> Unit) 
         ) {
             CategoryIconChip(categoryKey = category.name)
             Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                Text(text = category.name, style = MaterialTheme.typography.titleMedium)
+                Text(text = categoryPresentationName(category.id, category.name), style = MaterialTheme.typography.titleMedium)
                 Text(
-                    text = if (category.isBuiltIn) "Built-in category" else "Custom category",
+                    text = if (category.isBuiltIn) stringResource(R.string.category_builtin)
+                    else stringResource(R.string.category_custom),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
             when {
-                category.isArchived -> FinanceStatusPill(text = "Archived", color = FinanceTextMuted)
+                category.isArchived -> FinanceStatusPill(
+                    text = stringResource(R.string.category_archived),
+                    color = FinanceTextMuted,
+                )
                 !category.isBuiltIn -> IconButton(onClick = { onArchive(category.id) }) {
                     Icon(
                         imageVector = Icons.Outlined.Archive,
-                        contentDescription = "Archive ${category.name}",
+                        contentDescription = stringResource(
+                            R.string.category_archive,
+                            categoryPresentationName(category.id, category.name),
+                        ),
                     )
                 }
             }

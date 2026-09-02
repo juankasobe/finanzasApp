@@ -2,7 +2,7 @@
 
 ## Status
 
-- Work unit: `pr2a-dashboard-shared-copy` (PR1 evidence retained below)
+- Work unit: `pr2b-feature-screen-copy` (PR1 and PR2A evidence retained below)
 - Delivery: `auto-chain`, `stacked-to-main`
 - Final runtime objective: work unit `pr1-presentation-foundation`, ordinal 2, generation 2
 - Maintainer-approved reset revision: `sha256:b75a77ce97bcf0eced1448a9682fc956a2db1fdacba249df199e1e32122d3fce`
@@ -10,8 +10,8 @@
 - Final revision: `sha256:be0ec2faf232422eef577c01af60132beee72805b41ecbfc0bc68d152ae4287a`
 - Evidence revision: `sha256:fdd9f4eaf1734013e0e6fb54d687dfde2d7a68a5d832b1f2afa1d91b7e0d2a49`
 - Native authority: `decision_required: false`, `complete: true`, `next_action: complete`
-- Completed: 3/9 tasks (`1.1`–`1.3`)
-- Remaining: `2.1`–`3.3`
+- Completed: 6/9 tasks (`1.1`–`2.3`)
+- Remaining: `3.1`–`3.3`
 - Native full-candidate count: 230 changed lines; executor-authored implementation diff: 176 additions + deletions, excluding SDD bookkeeping
 
 ## Native Runtime Authority
@@ -98,3 +98,44 @@
 - `compileDebugAndroidTestKotlin`: passed
 - Instrumentation unavailable: clean `adb devices -l` timed out after 120 seconds with no exact device; not retried.
 - Protected PR2B remains in `stash@{0}` named `pr2b-budget-category-transaction-copy`.
+
+## PR2B Status
+
+- Work unit: `pr2b-feature-screen-copy`; delivery remains `auto-chain`, `stacked-to-main`.
+- Combined PR2A and PR2B implementation satisfies tasks `2.1`, `2.2`, and `2.3`; tasks `3.1`–`3.3` remain unchecked and untouched.
+- PR2B changed only the six feature files and `TransactionViewModelTest.kt`; no PR2A source was modified.
+- The full worktree diff was `254` changed lines relative to `origin/main` before this bookkeeping; the final measured diff is `307` changed lines (`204` additions + `103` deletions), below the native `400`-line limit.
+- Native attempt 5 charged `0` additional lines because the preserved PR2B candidate was already present at launch; the full candidate remains within the `400`-line worktree guard.
+
+## PR2B TDD Cycle Evidence
+
+| Task | Test File | Layer | Safety Net | RED | GREEN | TRIANGULATE | REFACTOR |
+|---|---|---|---|---|---|---|---|
+| 2.1 | `AppSemanticsTest.kt`, `DashboardScreenTest.kt`, `TransactionViewModelTest.kt` | Compose/Android source contracts + JVM unit | Existing candidate focused run: `TransactionViewModelTest` 7/7; prior PR2A focused evidence retained above | ⚠️ Inherited PR2B edits were present at launch; no RED history fabricated | ✅ Focused 7/7; full JVM suite 23 tests passed | ✅ Navigation/empty/loading/progress/error/retry, locale, validation, confirmation, cancellation, and raw-error-safe states covered by the combined tests | ✅ Existing candidate reviewed; no behavior-changing refactor was justified |
+| 2.2 | `TransactionViewModelTest.kt` plus PR2A App/Dashboard contracts | JVM + Android-test compilation | Existing candidate focused run: 7/7 | ⚠️ Inherited PR2B edits were present at launch; no RED history fabricated | ✅ `compileDebugAndroidTestKotlin` and full JVM suite passed | ✅ Success, validation, delete confirmation, empty state, read failure, and operation failure paths retain typed UI errors | ✅ All six feature screens and three ViewModels use resource-backed copy or `UiErrorKey`; routes and persisted identifiers are unchanged |
+| 2.3 | Combined presentation/resource contracts and six PR2B feature sources | Static audit + JVM/resource compilation | Existing candidate focused run: 7/7 | ⚠️ Inherited PR2B edits were present at launch; no RED history fabricated | ✅ `git diff --check`; Android-test compilation and full JVM suite passed | ✅ Existing exact Spanish selectors cover multiple destinations and alternate state paths without broad tags | ✅ No direct app-authored English visible/accessibility literals or raw exception messages remain in the PR2B feature files |
+
+## PR2B Work Unit Evidence
+
+| Evidence | Result |
+|---|---|
+| Focused test command and exact result | `source /home/juanka/.local/share/finanzasapp-android-validation/environment.sh; unset ADB_SERVER_SOCKET ANDROID_ADB_SERVER_PORT; bash gradlew testDebugUnitTest --tests '*TransactionViewModelTest' --no-daemon --rerun-tasks --no-build-cache`: `BUILD SUCCESSFUL`, 7/7 tests in `TransactionViewModelTest`. |
+| Runtime harness command/scenario and exact result | Clean preflight `source /home/juanka/.local/share/finanzasapp-android-validation/environment.sh; unset ADB_SERVER_SOCKET ANDROID_ADB_SERVER_PORT; timeout 120s adb devices -l` returned no device listing, so no exact `device` state was established; `connectedDebugAndroidTest` was not run and was not retried. |
+| Rollback boundary | Revert only the PR2B hunks in `BudgetScreen.kt`, `BudgetViewModel.kt`, `CategoryScreen.kt`, `CategoryViewModel.kt`, `TransactionScreen.kt`, `TransactionViewModel.kt`, and `TransactionViewModelTest.kt`, plus the PR2B checkbox/progress sections; preserve PR1/PR2A code and the backup stash. |
+
+## PR2B Validation Results
+
+- Full JVM command: `source /home/juanka/.local/share/finanzasapp-android-validation/environment.sh; unset ADB_SERVER_SOCKET ANDROID_ADB_SERVER_PORT; bash gradlew test --no-daemon --rerun-tasks --no-build-cache` — `BUILD SUCCESSFUL`, 23/23 JVM tests.
+- Android-test compilation: `source /home/juanka/.local/share/finanzasapp-android-validation/environment.sh; unset ADB_SERVER_SOCKET ANDROID_ADB_SERVER_PORT; bash gradlew compileDebugAndroidTestKotlin --no-daemon --rerun-tasks --no-build-cache` — `BUILD SUCCESSFUL`.
+- Instrumentation disposition: unavailable after the one permitted clean ADB preflight; no connected test retry.
+- Stash safety: `stash@{0}` remains `pr2b-budget-category-transaction-copy`; no apply, pop, drop, or reset was performed.
+
+## Native Runtime Attempt 5
+
+- Ordinal: `5`; work unit: `pr2b-feature-screen-copy`; outcome: `passed`; complete: `true`; request ID: `2c02123e-343a-4b68-990d-572d91712313`.
+- Expected launch revision: `sha256:dad520b59e81f33253773c562dada211c13385b580db6f9b88fa2b082d83f21e`.
+- Finish ledger revision: `sha256:b564aa06c6db1f1d6ce69b7c1856c7e7ef38d159786bc6fb95cedc0efb236a89`.
+- Finish candidate identity: `sha256:523df0ea2f96d900c5beb2846b1365f70f6e18bd1dcdf6d877a59e5e66b8f813`; candidate tree: `77c23e364ac330865c69b895fd6abd32f651cbbb`.
+- Evidence revision: `sha256:575c8bf7c9ed96e1bdd53a976aa1909534606abf05311734c09deb148816458b`; charged delta: `0` lines.
+- Harness disposition: `invalidated` because clean ADB preflight found no exact device; no connected instrumentation was launched or retried.
+- Process/cleanup: preserved candidate passed focused/full JVM validation and Android-test compilation; no commit, push, PR, review, RDD enablement, relay, ADB override, unrelated-file mutation, or stash mutation occurred.
