@@ -26,6 +26,7 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.res.stringResource
 import androidx.annotation.StringRes
+import androidx.lifecycle.compose.LifecycleStartEffect
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
@@ -52,6 +53,10 @@ private val destinations = listOf(
 
 @Composable
 fun SaldoClaroNavHost(container: AppContainer) {
+    LifecycleStartEffect(container) {
+        container.setForeground(true)
+        onStopOrDispose { container.setForeground(false) }
+    }
     val navController = rememberNavController()
     val currentRoute by navController.currentBackStackEntryAsState()
     val categoryState by container.categoryViewModel.state.collectAsState()

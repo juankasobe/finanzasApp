@@ -31,6 +31,9 @@ interface BudgetDao {
     @Query("SELECT * FROM budgets WHERE monthKey = :monthKey ORDER BY categoryId")
     fun observeMonth(monthKey: String): Flow<List<BudgetEntity>>
 
+    @Query("SELECT * FROM budgets WHERE monthKey = :monthKey")
+    suspend fun findAll(monthKey: String): List<BudgetEntity>
+
     @Query("SELECT * FROM budgets WHERE categoryId = :categoryId AND monthKey = :monthKey")
     suspend fun find(categoryId: String, monthKey: String): BudgetEntity?
 

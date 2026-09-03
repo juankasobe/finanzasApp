@@ -4,6 +4,8 @@ import android.content.Context
 import com.saldoclaro.finance.data.local.FinanceDatabase
 import com.saldoclaro.finance.data.repository.RoomBudgetRepository
 import com.saldoclaro.finance.data.repository.RoomFinanceRepositories
+import com.saldoclaro.finance.core.time.CurrentMonthSource
+import com.saldoclaro.finance.core.time.SystemCurrentMonthSource
 import com.saldoclaro.finance.feature.budgets.BudgetViewModel
 import com.saldoclaro.finance.feature.categories.CategoryViewModel
 import com.saldoclaro.finance.feature.dashboard.DashboardViewModel
@@ -18,9 +20,12 @@ class AppContainer(context: Context) {
     private val database = FinanceDatabase.open(context)
     private val transactions = RoomFinanceRepositories(database)
     private val budgets = RoomBudgetRepository(database)
+    private val monthSource: CurrentMonthSource = SystemCurrentMonthSource(clock, zone)
 
-    val dashboardViewModel by lazy { DashboardViewModel(transactions, budgets, clock, zone) }
+    fun setForeground(active: Boolean) = monthSource.setForeground(active)
+
+    val dashboardViewModel by lazy { DashboardViewModel(transactions, budgets, clock, zone, monthSource) }
     val transactionViewModel by lazy { TransactionViewModel(transactions, YearMonth.from(clock.instant().atZone(zone))) }
     val categoryViewModel by lazy { CategoryViewModel(transactions) }
-    val budgetViewModel by lazy { BudgetViewModel(transactions, budgets, clock, zone) }
+    val budgetViewModel by lazy { BudgetViewModel(transactions, budgets, clock, zone, monthSource) }
 }

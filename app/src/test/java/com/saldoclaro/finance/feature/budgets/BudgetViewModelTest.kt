@@ -4,7 +4,11 @@ import com.saldoclaro.finance.domain.model.Budget
 import com.saldoclaro.finance.domain.model.Transaction
 import com.saldoclaro.finance.domain.model.TransactionDraft
 import com.saldoclaro.finance.domain.model.TransactionType
+import com.saldoclaro.finance.core.presentation.UiErrorKey
+import com.saldoclaro.finance.core.time.CurrentMonthSource
 import com.saldoclaro.finance.domain.repository.BudgetRepository
+import com.saldoclaro.finance.domain.repository.BudgetMutationError
+import com.saldoclaro.finance.domain.repository.BudgetMutationException
 import com.saldoclaro.finance.domain.repository.BudgetTarget
 import com.saldoclaro.finance.domain.repository.DeleteEvidence
 import com.saldoclaro.finance.domain.repository.TransactionRepository
@@ -18,6 +22,7 @@ import java.time.ZoneId
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
@@ -95,11 +100,72 @@ class BudgetViewModelTest {
         assertProgress(content(viewModel.state.value).progress.single(), BudgetState.OVER, 3_000L, 4_000L, -1_000L)
     }
 
-    private fun viewModel(transactions: TransactionRepository, budgets: BudgetRepository) = BudgetViewModel(
+    @Test
+    fun `month refresh rolls active limits without replacing current or archived budgets`() = runBlocking {
+        val next = localCurrentMonth.plusMonths(1)
+        val transactions = FakeTransactionRepository(listOf(
+            transaction("active-spend", TransactionType.EXPENSE, 2_000L, "active", next.atDay(4)),
+            transaction("archived-spend", TransactionType.EXPENSE, 1_000L, "archived", next.atDay(5)),
+        ))
+        val budgets = FakeBudgetRepository(listOf(
+            budget("active", 5_000L),
+            budget("archived", 6_000L),
+            budget("existing", 3_000L),
+            budget("existing", 8_000L, next),
+        ))
+        budgets.archivedCategories = setOf("archived")
+        val source = TestMonthSource(localCurrentMonth)
+        val viewModel = viewModel(transactions, budgets, source)
+
+        source.advance(next)
+        source.refresh()
+
+        val progress = content(viewModel.state.value).progress.associateBy { it.categoryId }
+        assertProgress(progress.getValue("active"), BudgetState.UNDER, 5_000L, 2_000L, 3_000L)
+        assertProgress(progress.getValue("archived"), BudgetState.NO_BUDGET, null, 1_000L, null)
+        assertProgress(progress.getValue("existing"), BudgetState.UNDER, 8_000L, 0L, 8_000L)
+        assertEquals(next, transactions.observedMonths.last())
+        assertEquals(next, budgets.observedMonths.last())
+        assertEquals(1, budgets.records.count { it.categoryId == "active" && it.month == next })
+        assertEquals(1, budgets.rollovers.count { it.second == next })
+    }
+
+    @Test
+    fun `archived edit fails delete succeeds and stale target remains recoverable`() = runBlocking {
+        val target = BudgetTarget("archived", localCurrentMonth, 5_000L)
+        val budgets = FakeBudgetRepository(listOf(budget("archived", 5_000L)))
+        budgets.editResult = Result.failure(BudgetMutationException(BudgetMutationError.ArchivedCategory))
+        budgets.deleteResult = Result.success(DeleteEvidence(1))
+        val viewModel = viewModel(FakeTransactionRepository(emptyList()), budgets)
+
+        viewModel.openTarget(target)
+        viewModel.submitEdit("60.00")
+        assertEquals(BudgetMutationState.Error(target, UiErrorKey.OPERATION_FAILED), viewModel.mutationState.value)
+
+        viewModel.openTarget(target)
+        viewModel.requestDelete()
+        assertEquals(BudgetMutationState.ConfirmDelete(target), viewModel.mutationState.value)
+        viewModel.confirmDelete()
+        assertEquals(BudgetMutationState.Idle, viewModel.mutationState.value)
+        assertEquals(1, budgets.deleteCalls)
+
+        val stale = target.copy(month = localCurrentMonth.minusMonths(1))
+        viewModel.openTarget(stale)
+        viewModel.submitEdit("70.00")
+        assertEquals(BudgetMutationState.Error(stale, UiErrorKey.TARGET_UNAVAILABLE), viewModel.mutationState.value)
+        assertEquals(1, budgets.editCalls)
+    }
+
+    private fun viewModel(
+        transactions: TransactionRepository,
+        budgets: BudgetRepository,
+        monthSource: CurrentMonthSource = TestMonthSource(localCurrentMonth),
+    ) = BudgetViewModel(
         transactionRepository = transactions,
         budgetRepository = budgets,
         clock = clock,
         zone = zone,
+        monthSource = monthSource,
         dispatcher = Dispatchers.Unconfined,
     )
 
@@ -111,7 +177,7 @@ class BudgetViewModelTest {
         localDate: LocalDate = LocalDate.of(2026, 3, 15),
     ) = Transaction(id, type, amountCents, categoryId, localDate)
 
-    private fun budget(categoryId: String, limitCents: Long) = Budget(categoryId, localCurrentMonth, limitCents)
+    private fun budget(categoryId: String, limitCents: Long, month: YearMonth = localCurrentMonth) = Budget(categoryId, month, limitCents)
 
     private fun assertProgress(
         actual: BudgetProgressItem,
@@ -141,6 +207,14 @@ class BudgetViewModelTest {
         return state as BudgetUiState.Error
     }
 
+    private class TestMonthSource(initial: YearMonth) : CurrentMonthSource {
+        override val month = MutableStateFlow(initial)
+        private var pending = initial
+        fun advance(next: YearMonth) { pending = next }
+        override fun refresh() { month.value = pending }
+        override fun setForeground(active: Boolean) = Unit
+    }
+
     private class FakeTransactionRepository(initial: List<Transaction>) : TransactionRepository {
         private val events = ReadEvents(initial)
         val observedMonths = mutableListOf<YearMonth>()
@@ -156,9 +230,16 @@ class BudgetViewModelTest {
     }
 
     private class FakeBudgetRepository(initial: List<Budget>) : BudgetRepository {
+        var records = initial
         private val events = ReadEvents(initial)
         val observedMonths = mutableListOf<YearMonth>()
+        val rollovers = mutableListOf<Pair<YearMonth, YearMonth>>()
+        var archivedCategories = emptySet<String>()
         var saveCalls = 0
+        var editCalls = 0
+        var deleteCalls = 0
+        var editResult: Result<Unit> = Result.failure(IllegalStateException("Budget management is outside this test"))
+        var deleteResult: Result<DeleteEvidence> = Result.failure(IllegalStateException("Budget management is outside this test"))
 
         override fun observeMonth(month: YearMonth): Flow<List<Budget>> {
             observedMonths += month
@@ -170,13 +251,26 @@ class BudgetViewModelTest {
             return Result.success(Unit)
         }
 
-        override suspend fun editAmount(target: BudgetTarget, newLimitCents: Long): Result<Unit> =
-            error("Budget management is outside this test")
+        override suspend fun rollover(from: YearMonth, to: YearMonth): Result<Unit> {
+            rollovers += from to to
+            val current = records.filter { it.month == to }.map { it.categoryId }.toSet()
+            val copies = records.filter { it.month == from && it.categoryId !in archivedCategories && it.categoryId !in current }
+                .map { it.copy(month = to) }
+            if (copies.isNotEmpty()) publish(records + copies)
+            return Result.success(Unit)
+        }
 
-        override suspend fun delete(target: BudgetTarget): Result<DeleteEvidence> =
-            error("Budget management is outside this test")
+        override suspend fun editAmount(target: BudgetTarget, newLimitCents: Long): Result<Unit> {
+            editCalls += 1
+            return editResult
+        }
 
-        fun publish(budgets: List<Budget>) = events.publish(budgets)
+        override suspend fun delete(target: BudgetTarget): Result<DeleteEvidence> {
+            deleteCalls += 1
+            return deleteResult
+        }
+
+        fun publish(budgets: List<Budget>) { records = budgets; events.publish(budgets) }
         fun failRead(error: Throwable) = events.fail(error)
     }
 

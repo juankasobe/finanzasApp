@@ -67,6 +67,17 @@ class RoomBudgetRepository(private val database: FinanceDatabase) : BudgetReposi
         database.budgetDao().upsert(BudgetEntity(categoryId, month.toString(), limitCents))
     }
 
+    override suspend fun rollover(from: YearMonth, to: YearMonth): Result<Unit> = databaseResult {
+        database.withTransaction {
+            val current = database.budgetDao().findAll(to.toString()).mapTo(mutableSetOf()) { it.categoryId }
+            database.budgetDao().findAll(from.toString()).forEach { prior ->
+                if (database.categoryDao().find(prior.categoryId)?.isArchived == false && current.add(prior.categoryId)) {
+                    database.budgetDao().upsert(prior.copy(monthKey = to.toString()))
+                }
+            }
+        }
+    }
+
     override suspend fun editAmount(target: BudgetTarget, newLimitCents: Long): Result<Unit> = databaseResult {
         if (newLimitCents <= 0) throw BudgetMutationException(BudgetMutationError.InvalidLimit)
         database.withTransaction {
