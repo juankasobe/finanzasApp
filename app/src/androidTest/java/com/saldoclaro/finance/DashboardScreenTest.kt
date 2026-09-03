@@ -64,7 +64,7 @@ class DashboardScreenTest {
         composeTestRule.onNodeWithContentDescription("Ingresos 0,00\u00a0US\$").assertExists()
         composeTestRule.onNodeWithContentDescription("Gastos 25,00\u00a0US\$").assertExists()
         composeTestRule.onNodeWithText("Resumen de presupuestos").assertExists()
-        composeTestRule.onNodeWithText("No hay presupuestos este mes").assertExists()
+        composeTestRule.onNodeWithText("Gastado 25,00\u00a0US$ sin límite mensual.").assertExists()
     }
 
     @Test

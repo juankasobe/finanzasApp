@@ -5,6 +5,7 @@ import com.saldoclaro.finance.domain.model.MonthTotals
 import com.saldoclaro.finance.domain.model.Transaction
 import com.saldoclaro.finance.domain.model.TransactionDraft
 import com.saldoclaro.finance.domain.model.TransactionType
+import com.saldoclaro.finance.core.time.CurrentMonthSource
 import com.saldoclaro.finance.domain.repository.BudgetRepository
 import com.saldoclaro.finance.domain.repository.BudgetTarget
 import com.saldoclaro.finance.domain.repository.DeleteEvidence
@@ -18,6 +19,7 @@ import java.time.ZoneId
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
@@ -96,7 +98,32 @@ class DashboardViewModelTest {
         val state = content(viewModel.state.value)
         assertEquals(MonthTotals(0L, 2_500L), state.totals)
         assertEquals(listOf(activity), state.recentActivity)
-        assertEquals(DashboardBudgetOverview.NoBudgets, state.budgetOverview)
+        val progress = (state.budgetOverview as DashboardBudgetOverview.Progress).items.single()
+        assertEquals("groceries", progress.categoryId)
+        assertEquals(BudgetState.NO_BUDGET, progress.state)
+        assertEquals(null, progress.limitCents)
+        assertEquals(2_500L, progress.spentCents)
+    }
+
+    @Test
+    fun `month refresh switches dashboard projection to the new local month`() = runBlocking {
+        val next = localCurrentMonth.plusMonths(1)
+        val transactions = ControlledTransactionRepository()
+        val budgets = ControlledBudgetRepository()
+        val source = TestMonthSource(localCurrentMonth)
+        val viewModel = viewModel(transactions, budgets, source)
+
+        source.advance(next)
+        source.refresh()
+        val expense = transaction("next-expense", TransactionType.EXPENSE, 1_500L, next.atDay(2))
+        transactions.publish(listOf(expense))
+        budgets.publish(listOf(Budget("groceries", next, 2_000L)))
+
+        val progress = (content(viewModel.state.value).budgetOverview as DashboardBudgetOverview.Progress).items.single()
+        assertEquals(next, transactions.observedMonths.last())
+        assertEquals(next, budgets.observedMonths.last())
+        assertEquals(BudgetState.UNDER, progress.state)
+        assertEquals(1_500L, progress.spentCents)
     }
 
     @Test
@@ -129,11 +156,13 @@ class DashboardViewModelTest {
     private fun viewModel(
         transactions: TransactionRepository,
         budgets: BudgetRepository,
+        monthSource: CurrentMonthSource = TestMonthSource(localCurrentMonth),
     ) = DashboardViewModel(
         transactionRepository = transactions,
         budgetRepository = budgets,
         clock = clock,
         zone = zone,
+        monthSource = monthSource,
         dispatcher = Dispatchers.Unconfined,
     )
 
@@ -152,6 +181,14 @@ class DashboardViewModelTest {
     private fun error(state: DashboardUiState): DashboardUiState.Error {
         assertTrue("Expected recoverable dashboard error but was $state", state is DashboardUiState.Error)
         return state as DashboardUiState.Error
+    }
+
+    private class TestMonthSource(initial: YearMonth) : CurrentMonthSource {
+        override val month = MutableStateFlow(initial)
+        private var pending = initial
+        fun advance(next: YearMonth) { pending = next }
+        override fun refresh() { month.value = pending }
+        override fun setForeground(active: Boolean) = Unit
     }
 
     private class ControlledTransactionRepository : TransactionRepository {
@@ -199,6 +236,8 @@ class DashboardViewModelTest {
 
         override suspend fun save(categoryId: String, month: YearMonth, limitCents: Long): Result<Unit> =
             Result.success(Unit)
+
+        override suspend fun rollover(from: YearMonth, to: YearMonth): Result<Unit> = Result.success(Unit)
 
         override suspend fun editAmount(target: BudgetTarget, newLimitCents: Long): Result<Unit> =
             error("Dashboard does not edit budgets")

@@ -29,6 +29,7 @@ interface TransactionRepository {
 interface BudgetRepository {
     fun observeMonth(month: YearMonth): Flow<List<Budget>>
     suspend fun save(categoryId: String, month: YearMonth, limitCents: Long): Result<Unit>
+    suspend fun rollover(from: YearMonth, to: YearMonth): Result<Unit> = Result.success(Unit)
     suspend fun editAmount(target: BudgetTarget, newLimitCents: Long): Result<Unit>
     suspend fun delete(target: BudgetTarget): Result<DeleteEvidence>
 }

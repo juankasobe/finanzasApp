@@ -37,9 +37,9 @@ Chain strategy: stacked-to-main
 
 ## Phase 3B: Rollover and ViewModel Projection (PR3B)
 
-- [ ] 3B.1 **RED** — Add failing `BudgetViewModelTest.kt`/`DashboardViewModelTest.kt` for automatic current-month rollover; active categories, archived edit/delete constraints, stale targets, and no-limit visibility.
-- [ ] 3B.2 **GREEN** — Add `CurrentMonthSource.kt`; wire lifecycle/foreground switching via `AppContainer.kt`, `SaldoClaroNavHost.kt`, and both ViewModels; project spending unions in Budgets/Dashboard state.
-- [ ] 3B.3 **REFACTOR/VERIFICATION** — Verify boundary recheck, archived rules, recoverable errors, and `NO_BUDGET` with JVM/compile tests.
+- [x] 3B.1 **RED** — Add failing `BudgetViewModelTest.kt`/`DashboardViewModelTest.kt` for automatic current-month rollover; active categories, archived edit/delete constraints, stale targets, and no-limit visibility.
+- [x] 3B.2 **GREEN** — Add `CurrentMonthSource.kt`; wire lifecycle/foreground switching via `AppContainer.kt`, `SaldoClaroNavHost.kt`, and both ViewModels; project spending unions in Budgets/Dashboard state.
+- [x] 3B.3 **REFACTOR/VERIFICATION** — Verify boundary recheck, archived rules, recoverable errors, and `NO_BUDGET` with JVM/compile tests.
 
 ## Phase 3C: Compose Management UI (PR3C)
 
@@ -49,10 +49,10 @@ Chain strategy: stacked-to-main
 
 ### Legacy Mapping
 
-- `3.1` → PR3A (`3A.1–3A.3`, complete only for data mutations).
-- `3.2` → PR3B (`3B.1–3B.3`, pending rollover/projection).
-- `3.3` → PR3C (`3C.1–3C.3`, pending UI/audit).
+- `3.1` → PR3A (`3A.1–3A.3`), complete.
+- `3.2` → PR3B (`3B.1–3B.3`), complete.
+- `3.3` → PR3C (`3C.1–3C.3`), pending.
 
-Next: PR3B / 3B.1; `3.2` obsolete.
+Next: PR3C / 3C.1; PR3A and PR3B complete, PR3C pending.
 
 Threat matrix: N/A; no threat-specific RED tasks apply.

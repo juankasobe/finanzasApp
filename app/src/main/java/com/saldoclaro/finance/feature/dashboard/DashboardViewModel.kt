@@ -3,6 +3,8 @@ package com.saldoclaro.finance.feature.dashboard
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.saldoclaro.finance.core.presentation.UiErrorKey
+import com.saldoclaro.finance.core.time.CurrentMonthSource
+import com.saldoclaro.finance.core.time.SystemCurrentMonthSource
 import com.saldoclaro.finance.domain.model.Budget
 import com.saldoclaro.finance.domain.model.MonthTotals
 import com.saldoclaro.finance.domain.model.Transaction
@@ -24,6 +26,9 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.emitAll
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.launch
 
 sealed interface DashboardBudgetOverview {
@@ -46,9 +51,9 @@ class DashboardViewModel(
     private val budgetRepository: BudgetRepository,
     clock: Clock,
     zone: ZoneId,
+    private val monthSource: CurrentMonthSource = SystemCurrentMonthSource(clock, zone),
     private val dispatcher: CoroutineDispatcher = Dispatchers.Main.immediate,
 ) : ViewModel() {
-    private val month = currentMonth(clock, zone)
     private val _state = MutableStateFlow<DashboardUiState>(DashboardUiState.Loading)
     private var observation: Job? = null
     val state: StateFlow<DashboardUiState> = _state.asStateFlow()
@@ -64,12 +69,13 @@ class DashboardViewModel(
         _state.value = DashboardUiState.Loading
         observation = viewModelScope.launch(dispatcher) {
             try {
-                combine(
-                    transactionRepository.observeMonth(month),
-                    budgetRepository.observeMonth(month),
-                ) { transactions, budgets ->
-                    transactions.toDashboardContent(month, budgets)
-                }.collect { _state.value = it }
+                monthSource.month.flatMapLatest { month -> flow {
+                    budgetRepository.rollover(month.minusMonths(1), month).getOrThrow()
+                    emitAll(combine(
+                        transactionRepository.observeMonth(month),
+                        budgetRepository.observeMonth(month),
+                    ) { transactions, budgets -> transactions.toDashboardContent(month, budgets) })
+                } }.collect { _state.value = it }
             } catch (error: Throwable) {
                 if (error is CancellationException) throw error
                 _state.value = DashboardUiState.Error(UiErrorKey.DATA_UNAVAILABLE)
@@ -85,13 +91,11 @@ private fun List<Transaction>.toDashboardContent(
     val monthBounds = month.atDay(1)..month.atEndOfMonth()
     val currentTransactions = filter { it.localDate in monthBounds }
     val currentBudgets = budgets.filter { it.month == month }
+    val progress = projectBudgetProgress(currentTransactions, currentBudgets)
     return DashboardUiState.Content(
         totals = calculateMonthTotals(currentTransactions, monthBounds),
         recentActivity = currentTransactions,
-        budgetOverview = if (currentBudgets.isEmpty()) {
-            DashboardBudgetOverview.NoBudgets
-        } else {
-            DashboardBudgetOverview.Progress(projectBudgetProgress(currentTransactions, currentBudgets))
-        },
+        budgetOverview = progress.takeIf { it.isNotEmpty() }?.let(DashboardBudgetOverview::Progress)
+            ?: DashboardBudgetOverview.NoBudgets,
     )
 }

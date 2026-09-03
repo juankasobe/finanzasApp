@@ -2,18 +2,12 @@
 
 ## Status
 
-- Work unit: `pr3a-budget-data-mutations` (PR1, PR2A, PR2B, and prior PR3 diagnosis retained below)
+- Work unit/objective: `pr3b-budget-rollover-projection`, ordinal 8, generation 8, max 400 changed lines
 - Delivery: `auto-chain`, `stacked-to-main`
-- Current runtime objective: work unit `pr3a-budget-data-mutations`, ordinal 7, generation 7, max 400 changed lines
-- Maintainer-approved reset revision: `sha256:b75a77ce97bcf0eced1448a9682fc956a2db1fdacba249df199e1e32122d3fce`
-- Final objective max changed lines: 250; lifetime changed lines: 230
-- Final revision: `sha256:be0ec2faf232422eef577c01af60132beee72805b41ecbfc0bc68d152ae4287a`
-- Evidence revision: `sha256:fdd9f4eaf1734013e0e6fb54d687dfde2d7a68a5d832b1f2afa1d91b7e0d2a49`
-- Native authority: ordinal 7 complete; `decision_required: false`, `next_action: complete`
-- Completed: 9/15 tasks (`1.1`–`2.3`, `3A.1`–`3A.3`)
-- Remaining: `3B.1`–`3C.3`
-- Historical full-candidate count: 230 changed lines; executor-authored implementation diff: 176 additions + deletions, excluding SDD bookkeeping
-- Current PR3A full diff: 371 changed lines, below the 400-line limit, including the authorized task replan and bookkeeping reconciliation; native charged delta: 295 changed lines.
+- Attempt 8: passed/complete; `decision_required: false`, `next_action: complete`; historical native candidate `392/400`; current artifact-reconciled full candidate: tracked `306 additions + 49 deletions = 355` + untracked `43` (`CurrentMonthSource.kt`) = `398/400` relative to `origin/main`; connected instrumentation `15/15` on device `c0e19fe4`; finish `sha256:3231ee4eab393dd643e29b128be85e3379c09e03722cd62cf9fb9703d0dc5c6f`; evidence `sha256:93a0bd584d5fbabca29bad22a4c272a10cb3aba1a79aa6285b556cbfe34a7f90`.
+- Completed: 12/15 tasks (`1.1`–`2.3`, `3A.1`–`3B.3`); remaining `3C.1`–`3C.3`; next: PR3C / 3C.1.
+- Historical PR1 full-candidate count: 230 changed lines; executor-authored implementation diff: 176 additions + deletions, excluding SDD bookkeeping
+- Historical PR3A full diff: 371 changed lines, below the 400-line limit, including the authorized task replan and bookkeeping reconciliation; native charged delta: 295 changed lines.
 
 ## Native Runtime Authority
 
@@ -206,3 +200,15 @@
 - Native authority remains attempt `7`, passed and complete at finish revision `sha256:f0a088f2c653d523bf431c73494097d9c05d4b21dbeefb058b9656c49d65ef41`, evidence revision `sha256:3f7f29e5e4f678fb5a65bc5754bda8f454810f414deae6ac4fe389faa2d76b9e`.
 - Rollback boundary: revert only the PR3A hunks in `FinanceRepositories.kt`, `FinanceDao.kt`, `RoomFinanceRepositories.kt`, `FinanceDatabaseTest.kt`, the three repository-fake compatibility edits, Phase 3A bookkeeping, and this PR3A progress section; do not remove UI, rollover, projection, schema, stash, or unrelated behavior.
 - This reconciliation changed only SDD artifacts and Engram bookkeeping; it did not modify source/test code, run tests/builds, mutate Git/stash, start/reset/finish runtime attempts, invoke review, or enable RDD.
+
+## PR3B Work Unit Evidence — `3B.1`–`3B.3` complete; PR3C / 3C.1 next; PR3C Compose UI/semantics out of scope.
+### TDD Cycle Evidence
+| Task | RED | GREEN | TRIANGULATE | REFACTOR |
+|---|---|---|---|---|
+| 3B.1 | ✅ missing source/state/rollover symbols | ✅ focused 10/10 | ✅ rollover, active/archived, stale, no-limit | ✅ focused 10/10 |
+| 3B.2 | ✅ new month source seam | ✅ 10/10 + compile | ✅ both ViewModels switch months | ✅ no Compose management changes |
+| 3B.3 | ✅ assertions preceded production | ✅ full JVM 26/26 | ✅ exact-device 15/15 | ✅ `git diff --check` |
+### Work Unit Evidence
+- Focused tests: `bash gradlew testDebugUnitTest --tests '*BudgetViewModelTest' --tests '*DashboardViewModelTest'` → 10/10, `BUILD SUCCESSFUL`; full JVM `bash gradlew test` → 26/26, `BUILD SUCCESSFUL`; Android-test compilation `bash gradlew compileDebugAndroidTestKotlin` → `BUILD SUCCESSFUL`.
+- Runtime harness: one clean env/unset ADB preflight found `c0e19fe4 device`; `bash gradlew connectedDebugAndroidTest` → 15/15, `BUILD SUCCESSFUL`.
+- Rollback boundary: revert PR3B hunks in `CurrentMonthSource.kt`, both ViewModels, rollover DAO/repository, `AppContainer.kt`/`SaldoClaroNavHost.kt`, focused tests, Dashboard expectation, and PR3B artifacts; preserve PR3A/Spanish history.
