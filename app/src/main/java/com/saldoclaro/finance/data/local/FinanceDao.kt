@@ -31,6 +31,15 @@ interface BudgetDao {
     @Query("SELECT * FROM budgets WHERE monthKey = :monthKey ORDER BY categoryId")
     fun observeMonth(monthKey: String): Flow<List<BudgetEntity>>
 
+    @Query("SELECT * FROM budgets WHERE categoryId = :categoryId AND monthKey = :monthKey")
+    suspend fun find(categoryId: String, monthKey: String): BudgetEntity?
+
+    @Query("UPDATE budgets SET limitCents = :newLimitCents WHERE categoryId = :categoryId AND monthKey = :monthKey AND limitCents = :expectedLimitCents")
+    suspend fun updateLimit(categoryId: String, monthKey: String, expectedLimitCents: Long, newLimitCents: Long): Int
+
+    @Query("DELETE FROM budgets WHERE categoryId = :categoryId AND monthKey = :monthKey AND limitCents = :expectedLimitCents")
+    suspend fun delete(categoryId: String, monthKey: String, expectedLimitCents: Long): Int
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun upsert(budget: BudgetEntity)
 }

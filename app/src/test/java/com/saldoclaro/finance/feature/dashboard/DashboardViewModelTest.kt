@@ -6,6 +6,8 @@ import com.saldoclaro.finance.domain.model.Transaction
 import com.saldoclaro.finance.domain.model.TransactionDraft
 import com.saldoclaro.finance.domain.model.TransactionType
 import com.saldoclaro.finance.domain.repository.BudgetRepository
+import com.saldoclaro.finance.domain.repository.BudgetTarget
+import com.saldoclaro.finance.domain.repository.DeleteEvidence
 import com.saldoclaro.finance.domain.repository.TransactionRepository
 import com.saldoclaro.finance.domain.usecase.BudgetState
 import java.time.Clock
@@ -197,6 +199,12 @@ class DashboardViewModelTest {
 
         override suspend fun save(categoryId: String, month: YearMonth, limitCents: Long): Result<Unit> =
             Result.success(Unit)
+
+        override suspend fun editAmount(target: BudgetTarget, newLimitCents: Long): Result<Unit> =
+            error("Dashboard does not edit budgets")
+
+        override suspend fun delete(target: BudgetTarget): Result<DeleteEvidence> =
+            error("Dashboard does not delete budgets")
     }
 
     private sealed interface ReadEvent {
