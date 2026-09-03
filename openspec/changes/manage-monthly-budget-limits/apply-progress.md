@@ -2,17 +2,18 @@
 
 ## Status
 
-- Work unit: `pr2b-feature-screen-copy` (PR1 and PR2A evidence retained below)
+- Work unit: `pr3a-budget-data-mutations` (PR1, PR2A, PR2B, and prior PR3 diagnosis retained below)
 - Delivery: `auto-chain`, `stacked-to-main`
-- Final runtime objective: work unit `pr1-presentation-foundation`, ordinal 2, generation 2
+- Current runtime objective: work unit `pr3a-budget-data-mutations`, ordinal 7, generation 7, max 400 changed lines
 - Maintainer-approved reset revision: `sha256:b75a77ce97bcf0eced1448a9682fc956a2db1fdacba249df199e1e32122d3fce`
 - Final objective max changed lines: 250; lifetime changed lines: 230
 - Final revision: `sha256:be0ec2faf232422eef577c01af60132beee72805b41ecbfc0bc68d152ae4287a`
 - Evidence revision: `sha256:fdd9f4eaf1734013e0e6fb54d687dfde2d7a68a5d832b1f2afa1d91b7e0d2a49`
-- Native authority: `decision_required: false`, `complete: true`, `next_action: complete`
-- Completed: 6/9 tasks (`1.1`–`2.3`)
-- Remaining: `3.1`–`3.3`
-- Native full-candidate count: 230 changed lines; executor-authored implementation diff: 176 additions + deletions, excluding SDD bookkeeping
+- Native authority: ordinal 7 complete; `decision_required: false`, `next_action: complete`
+- Completed: 9/15 tasks (`1.1`–`2.3`, `3A.1`–`3A.3`)
+- Remaining: `3B.1`–`3C.3`
+- Historical full-candidate count: 230 changed lines; executor-authored implementation diff: 176 additions + deletions, excluding SDD bookkeeping
+- Current PR3A full diff: 371 changed lines, below the 400-line limit, including the authorized task replan and bookkeeping reconciliation; native charged delta: 295 changed lines.
 
 ## Native Runtime Authority
 
@@ -139,3 +140,69 @@
 - Evidence revision: `sha256:575c8bf7c9ed96e1bdd53a976aa1909534606abf05311734c09deb148816458b`; charged delta: `0` lines.
 - Harness disposition: `invalidated` because clean ADB preflight found no exact device; no connected instrumentation was launched or retried.
 - Process/cleanup: preserved candidate passed focused/full JVM validation and Android-test compilation; no commit, push, PR, review, RDD enablement, relay, ADB override, unrelated-file mutation, or stash mutation occurred.
+
+## PR3 Attempt 6 Status
+
+- Work unit: `pr3-monthly-budget-management`; tasks `3.1`–`3.3` remain unchecked and no implementation is retained.
+- Outcome: blocked by the hard 400 changed-line boundary before a coherent slice could be completed; the draft candidate peaked at 713 changed lines (591 tracked plus 122 untracked) and was rolled back.
+- TDD evidence: RED was captured with `BudgetViewModelTest` failing to compile against the not-yet-implemented management contracts; no GREEN, task completion, or false success is claimed.
+- ADB disposition: the one clean preflight after sourcing the required environment and unsetting `ADB_SERVER_SOCKET`, `ANDROID_ADB_SERVER_ADDRESS`, and `ANDROID_ADB_SERVER_PORT` produced no device listing; no connected instrumentation was run or retried.
+- Rollback boundary: all draft PR3 source/test edits were removed; PR1/PR2 history and the protected stash remain unchanged.
+
+## PR3A Status — Atomic Budget Data Mutations
+
+- Work unit: `pr3a-budget-data-mutations`; delivery remains `auto-chain`, `stacked-to-main`.
+- Scope is limited to Phase 3A: typed Room/DAO/repository edit and exact delete mutations with focused Room coverage.
+- Implemented only exact `(categoryId, YearMonth)` amount replacement/deletion; rollover, ViewModel/Dashboard projection, Compose management UI, dialogs, semantics, and Phases 3B/3C remain out of scope.
+- `BudgetTarget` captures the opened amount; `BudgetMutationError`/`BudgetMutationException` distinguish invalid, archived, missing, stale, and unexpected-row outcomes; delete returns `DeleteEvidence(affectedRows)`.
+- Both mutations execute under `FinanceDatabase.withTransaction`; update/delete SQL includes the expected opened amount, so a stale target cannot affect another row.
+- No entity or schema migration was made.
+- Task state: `3A.1`–`3A.3` are complete for this explicitly authorized data-mutation split; `3B.1`–`3C.3` remain unchecked.
+
+## PR3A TDD Cycle Evidence
+
+| Task | Test File | Layer | Safety Net | RED | GREEN | TRIANGULATE | REFACTOR |
+|---|---|---|---|---|---|---|---|
+| 3A.1–3A.3 | `FinanceDatabaseTest.kt` plus compatible repository fakes | Room instrumentation source + JVM safety net | ✅ Existing Budget/Dashboard ViewModel tests: 7/7 | ✅ Exact edit test was written first; compile failed on missing `BudgetTarget`/`editAmount` | ✅ `compileDebugAndroidTestKotlin`: `BUILD SUCCESSFUL`; runtime execution is unavailable without an exact ADB device | ✅ Exact edit/delete isolation, affected-row evidence, stale/missing typed errors, invalid limit, archived edit rejection, and archived deletion | ✅ Consolidated category lookup; focused compile remained green after refactor |
+
+## PR3A Work Unit Evidence
+
+| Evidence | Result |
+|---|---|
+| Focused test command and exact result | `source /home/juanka/.local/share/finanzasapp-android-validation/environment.sh && env -u ADB_SERVER_SOCKET -u ANDROID_ADB_SERVER_ADDRESS -u ANDROID_ADB_SERVER_PORT bash gradlew testDebugUnitTest --tests '*BudgetViewModelTest' --tests '*DashboardViewModelTest' --no-daemon --rerun-tasks --no-build-cache`: `BUILD SUCCESSFUL`, 7/7. Room-focused `FinanceDatabaseTest` sources compile via `compileDebugAndroidTestKotlin`: `BUILD SUCCESSFUL`. |
+| Full JVM suite | `source /home/juanka/.local/share/finanzasapp-android-validation/environment.sh && env -u ADB_SERVER_SOCKET -u ANDROID_ADB_SERVER_ADDRESS -u ANDROID_ADB_SERVER_PORT bash gradlew test --no-daemon --rerun-tasks --no-build-cache`: `BUILD SUCCESSFUL`, 23/23. |
+| Runtime harness command/scenario and exact result | Clean preflight `source /home/juanka/.local/share/finanzasapp-android-validation/environment.sh && env -u ADB_SERVER_SOCKET -u ANDROID_ADB_SERVER_ADDRESS -u ANDROID_ADB_SERVER_PORT timeout 120s adb devices -l` returned no device listing; no exact `device` state was established, so `connectedDebugAndroidTest` was not run or retried. |
+| Rollback boundary | Revert only the PR3A hunks in `FinanceRepositories.kt`, `FinanceDao.kt`, `RoomFinanceRepositories.kt`, `FinanceDatabaseTest.kt`, the three repository-fake compatibility edits, `tasks.md` Phase 3A bookkeeping, and this PR3A progress section; no UI, rollover, projection, schema, stash, or unrelated behavior is included. |
+
+## PR3A Files Changed
+
+- `app/src/main/java/com/saldoclaro/finance/domain/repository/FinanceRepositories.kt`
+- `app/src/main/java/com/saldoclaro/finance/data/local/FinanceDao.kt`
+- `app/src/main/java/com/saldoclaro/finance/data/repository/RoomFinanceRepositories.kt`
+- `app/src/androidTest/java/com/saldoclaro/finance/data/local/FinanceDatabaseTest.kt`
+- `app/src/androidTest/java/com/saldoclaro/finance/DashboardScreenTest.kt`
+- `app/src/test/java/com/saldoclaro/finance/feature/budgets/BudgetViewModelTest.kt`
+- `app/src/test/java/com/saldoclaro/finance/feature/dashboard/DashboardViewModelTest.kt`
+- `openspec/changes/manage-monthly-budget-limits/tasks.md`
+
+## Native Runtime Attempt 7
+
+- Ordinal: `7`; work unit: `pr3a-budget-data-mutations`; outcome: `passed`; complete: `true`; next action: `complete`.
+- Request ID: `d4313205-8c7a-4b94-8e3d-7a4e97cfe352`.
+- Expected launch revision: `sha256:8d7245fb1a953180c903fefd89cea3ad727abcb2cd4dc199e6db88a4805028a5`.
+- Finish ledger revision: `sha256:f0a088f2c653d523bf431c73494097d9c05d4b21dbeefb058b9656c49d65ef41`.
+- Finish candidate identity: `sha256:021c96f66c29c00da8199e10b26156785ca45ded9ce9fc45806d55780aa1d9bc`; candidate tree: `006b7633bcc2913f617a2a940235f59ed90c3398`.
+- Evidence revision: `sha256:3f7f29e5e4f678fb5a65bc5754bda8f454810f414deae6ac4fe389faa2d76b9e`; charged delta: `295` lines.
+- Harness disposition: `invalidated` because the one clean ADB preflight returned no exact device; connected instrumentation was not launched or retried.
+- Process/cleanup: focused/full JVM and Android-test compilation evidence passed; no commit, push, PR, review, RDD enablement, ADB override, relay, stash mutation, or unrelated-file edit occurred; no active native attempt remains.
+
+## Gatekeeper Reconciliation — PR3A
+
+- Task ledger is truthful at `9/15`: tasks `3A.1`–`3A.3` are complete; tasks `3B.1`–`3C.3` remain unchecked.
+- PR3A accounting is `371` full changed lines, below the `400`-line review boundary, including the authorized task replan and bookkeeping reconciliation; native charged delta is `295` lines.
+- The completed PR3A slice is limited to atomic exact-key Room/DAO/repository edit and delete operations with typed outcomes. It preserves transactions and all other months/categories; rollover, ViewModel/Dashboard projection, and management UI remain in Phases 3B/3C.
+- Safety-net result: `BudgetViewModelTest` + `DashboardViewModelTest` passed `7/7`; the full JVM suite passed `23/23`; `compileDebugAndroidTestKotlin` passed.
+- Clean ADB preflight found no exact `device`; connected instrumentation was unavailable and was not retried.
+- Native authority remains attempt `7`, passed and complete at finish revision `sha256:f0a088f2c653d523bf431c73494097d9c05d4b21dbeefb058b9656c49d65ef41`, evidence revision `sha256:3f7f29e5e4f678fb5a65bc5754bda8f454810f414deae6ac4fe389faa2d76b9e`.
+- Rollback boundary: revert only the PR3A hunks in `FinanceRepositories.kt`, `FinanceDao.kt`, `RoomFinanceRepositories.kt`, `FinanceDatabaseTest.kt`, the three repository-fake compatibility edits, Phase 3A bookkeeping, and this PR3A progress section; do not remove UI, rollover, projection, schema, stash, or unrelated behavior.
+- This reconciliation changed only SDD artifacts and Engram bookkeeping; it did not modify source/test code, run tests/builds, mutate Git/stash, start/reset/finish runtime attempts, invoke review, or enable RDD.

@@ -1,5 +1,6 @@
 package com.saldoclaro.finance.data.repository
 
+import androidx.room.withTransaction
 import com.saldoclaro.finance.data.local.CategoryEntity
 import com.saldoclaro.finance.data.local.BudgetEntity
 import com.saldoclaro.finance.data.local.FinanceDatabase
@@ -8,7 +9,11 @@ import com.saldoclaro.finance.domain.model.Budget
 import com.saldoclaro.finance.domain.model.Transaction
 import com.saldoclaro.finance.domain.model.TransactionDraft
 import com.saldoclaro.finance.domain.model.TransactionType
+import com.saldoclaro.finance.domain.repository.BudgetMutationError
+import com.saldoclaro.finance.domain.repository.BudgetMutationException
 import com.saldoclaro.finance.domain.repository.BudgetRepository
+import com.saldoclaro.finance.domain.repository.BudgetTarget
+import com.saldoclaro.finance.domain.repository.DeleteEvidence
 import com.saldoclaro.finance.domain.repository.TransactionRepository
 import java.time.LocalDate
 import java.time.YearMonth
@@ -61,6 +66,54 @@ class RoomBudgetRepository(private val database: FinanceDatabase) : BudgetReposi
         check(database.categoryDao().find(categoryId)?.isArchived == false) { "Category is inactive" }
         database.budgetDao().upsert(BudgetEntity(categoryId, month.toString(), limitCents))
     }
+
+    override suspend fun editAmount(target: BudgetTarget, newLimitCents: Long): Result<Unit> = databaseResult {
+        if (newLimitCents <= 0) throw BudgetMutationException(BudgetMutationError.InvalidLimit)
+        database.withTransaction {
+            requireCurrentTarget(target)
+            requireActiveCategory(target.categoryId)
+            val affectedRows = database.budgetDao().updateLimit(
+                target.categoryId,
+                target.month.toString(),
+                target.openedLimitCents,
+                newLimitCents,
+            )
+            if (affectedRows != 1) {
+                throw BudgetMutationException(BudgetMutationError.UnexpectedAffectedRows(affectedRows))
+            }
+        }
+    }
+
+    override suspend fun delete(target: BudgetTarget): Result<DeleteEvidence> = databaseResult {
+        database.withTransaction {
+            requireCurrentTarget(target)
+            val affectedRows = database.budgetDao().delete(
+                target.categoryId,
+                target.month.toString(),
+                target.openedLimitCents,
+            )
+            if (affectedRows != 1) {
+                throw BudgetMutationException(BudgetMutationError.UnexpectedAffectedRows(affectedRows))
+            }
+            DeleteEvidence(affectedRows)
+        }
+    }
+
+    private suspend fun requireCurrentTarget(target: BudgetTarget) {
+        val current = database.budgetDao().find(target.categoryId, target.month.toString())
+            ?: throw BudgetMutationException(BudgetMutationError.TargetMissing)
+        if (current.limitCents != target.openedLimitCents) {
+            throw BudgetMutationException(BudgetMutationError.TargetStale)
+        }
+    }
+
+    private suspend fun requireActiveCategory(categoryId: String) {
+        val category = database.categoryDao().find(categoryId)
+        when {
+            category == null -> throw BudgetMutationException(BudgetMutationError.CategoryNotFound)
+            category.isArchived -> throw BudgetMutationException(BudgetMutationError.ArchivedCategory)
+        }
+    }
 }
 
 internal fun normalizeCategoryName(name: String): String = name.trim().lowercase().also {
@@ -69,6 +122,8 @@ internal fun normalizeCategoryName(name: String): String = name.trim().lowercase
 
 private suspend fun <T> databaseResult(block: suspend () -> T): Result<T> = try {
     Result.success(block())
+} catch (error: BudgetMutationException) {
+    Result.failure(error)
 } catch (error: IllegalArgumentException) {
     Result.failure(error)
 } catch (error: Exception) {

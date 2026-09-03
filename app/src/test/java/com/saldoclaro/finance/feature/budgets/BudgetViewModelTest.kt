@@ -5,6 +5,8 @@ import com.saldoclaro.finance.domain.model.Transaction
 import com.saldoclaro.finance.domain.model.TransactionDraft
 import com.saldoclaro.finance.domain.model.TransactionType
 import com.saldoclaro.finance.domain.repository.BudgetRepository
+import com.saldoclaro.finance.domain.repository.BudgetTarget
+import com.saldoclaro.finance.domain.repository.DeleteEvidence
 import com.saldoclaro.finance.domain.repository.TransactionRepository
 import com.saldoclaro.finance.domain.usecase.BudgetProgressItem
 import com.saldoclaro.finance.domain.usecase.BudgetState
@@ -167,6 +169,12 @@ class BudgetViewModelTest {
             saveCalls += 1
             return Result.success(Unit)
         }
+
+        override suspend fun editAmount(target: BudgetTarget, newLimitCents: Long): Result<Unit> =
+            error("Budget management is outside this test")
+
+        override suspend fun delete(target: BudgetTarget): Result<DeleteEvidence> =
+            error("Budget management is outside this test")
 
         fun publish(budgets: List<Budget>) = events.publish(budgets)
         fun failRead(error: Throwable) = events.fail(error)
