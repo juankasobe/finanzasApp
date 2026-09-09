@@ -2,18 +2,18 @@
 
 ## Status
 
-- Work unit/objective: `pr3b-budget-rollover-projection`, ordinal 8, generation 8, max 400 changed lines
+- Work unit/objective: `pr3c-budget-management-ui`, ordinal 9, generation 9, max 400 changed lines
 - Delivery: `auto-chain`, `stacked-to-main`
-- Attempt 8: passed/complete; `decision_required: false`, `next_action: complete`; historical native candidate `392/400`; current artifact-reconciled full candidate: tracked `306 additions + 49 deletions = 355` + untracked `43` (`CurrentMonthSource.kt`) = `398/400` relative to `origin/main`; connected instrumentation `15/15` on device `c0e19fe4`; finish `sha256:3231ee4eab393dd643e29b128be85e3379c09e03722cd62cf9fb9703d0dc5c6f`; evidence `sha256:93a0bd584d5fbabca29bad22a4c272a10cb3aba1a79aa6285b556cbfe34a7f90`.
-- Completed: 12/15 tasks (`1.1`–`2.3`, `3A.1`–`3B.3`); remaining `3C.1`–`3C.3`; next: PR3C / 3C.1.
+- Attempt 9: passed/complete; `decision_required: false`, `next_action: complete`; native charged candidate `368/400`; connected instrumentation `20/20` on device `c0e19fe4`; finish candidate `sha256:9de8781bb5402ef1e752d6773945e9a08ed1bdd38a6fdceb723e78c50f8fac35`; finish tree `2cc6f4a79d36a884de71043010c968f7f6a44a24`; native revision `sha256:01817cbd1ef198757ff42bb1a5ba24039a66c0a4d40e07c8f1264c6993928a34`; evidence `sha256:d30690be6a7d6865cc20319b99d0bf3db74c1c3495607594395b06b98a5d0091`.
+- Completed: 15/15 tasks (`1.1`–`2.3`, `3A.1`–`3C.3`); next: verify, then archive when authorized.
 - Historical PR1 full-candidate count: 230 changed lines; executor-authored implementation diff: 176 additions + deletions, excluding SDD bookkeeping
 - Historical PR3A full diff: 371 changed lines, below the 400-line limit, including the authorized task replan and bookkeeping reconciliation; native charged delta: 295 changed lines.
 
 ## Native Runtime Authority
 
-- The maintainer-approved reset expanded the full-candidate PR1 budget from 200 to 250 lines.
-- Final native objective: generation 2, work unit `pr1-presentation-foundation`, max changed lines 250, lifetime count 230.
-- Final native revision and evidence revision are recorded above; the objective is complete with no decision required and `next_action: complete`.
+- Current native objective: generation 9, work unit `pr3c-budget-management-ui`, max changed lines 400, charged candidate count 368.
+- Attempt 9 is complete with no decision required and `next_action: complete`; request ID `4bb4667f-4647-4270-a72c-3c9fdc908a56`.
+- Final native revision and evidence revision are recorded above; prior attempt history remains below.
 - RDD review start was rejected with typed `rdd_disabled`; no review transaction started, receipt status remains disabled/unmanaged, and RDD was not enabled.
 
 ## Completed Tasks
@@ -212,3 +212,44 @@
 - Focused tests: `bash gradlew testDebugUnitTest --tests '*BudgetViewModelTest' --tests '*DashboardViewModelTest'` → 10/10, `BUILD SUCCESSFUL`; full JVM `bash gradlew test` → 26/26, `BUILD SUCCESSFUL`; Android-test compilation `bash gradlew compileDebugAndroidTestKotlin` → `BUILD SUCCESSFUL`.
 - Runtime harness: one clean env/unset ADB preflight found `c0e19fe4 device`; `bash gradlew connectedDebugAndroidTest` → 15/15, `BUILD SUCCESSFUL`.
 - Rollback boundary: revert PR3B hunks in `CurrentMonthSource.kt`, both ViewModels, rollover DAO/repository, `AppContainer.kt`/`SaldoClaroNavHost.kt`, focused tests, Dashboard expectation, and PR3B artifacts; preserve PR3A/Spanish history.
+
+## PR3C Work Unit Evidence — `3C.1`–`3C.3` complete
+
+- Work unit: `pr3c-budget-management-ui`; delivery remains `auto-chain`, `stacked-to-main`; native ordinal 9 is the single authorized attempt.
+- Implementation keeps the opened `BudgetTarget` immutable for category/month, exposes amount-only edit and exact delete confirmation, preserves recoverable error context, and passes all categories to the Budgets route so archived limits remain manageable while the editor lists active categories only.
+
+### TDD Cycle Evidence
+
+| Task | RED | GREEN | TRIANGULATE | REFACTOR |
+|---|---|---|---|---|
+| 3C.1 | ✅ New `BudgetScreenTest` was executed before the UI correction; focused run exposed the missing recoverable edit context (the initial amount assertion was corrected from `0,00` to `25,00`) | ✅ Final focused `BudgetScreenTest` run: 5/5, `BUILD SUCCESSFUL` | ✅ Card tap, exact target text, amount-only edit, invalid input, cancellation, delete confirmation, archived delete-only, no-limit visibility, and Spanish semantics | ✅ Selectors remain behavior-specific; no broad tags or raw UI copy added |
+| 3C.2 | ✅ Focused UI test failed before `Error` retained the edit context | ✅ `compileDebugAndroidTestKotlin` and focused/full connected tests passed after the correction | ✅ Full connected suite exercised Budgets, Dashboard, semantics, Room, and transaction flows | ✅ `Error.deleting` distinguishes recoverable edit versus delete states; navigation supplies archived metadata without changing transaction/category routes |
+| 3C.3 | ✅ Existing focused failure served as the verification safety net; no separate behavior contract was introduced | ✅ Full JVM, Android-test compilation, and connected regression passed | ✅ Exact-device runtime plus static copy/resource audit | ✅ No alternate locale resources, selectors, fallback, raw exception UI, or app-authored English literals found |
+
+### Work Unit Evidence
+
+- Focused test: `source /home/juanka/.local/share/finanzasapp-android-validation/environment.sh && env -u ADB_SERVER_SOCKET -u ANDROID_ADB_SERVER_ADDRESS -u ANDROID_ADB_SERVER_PORT bash gradlew connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.class=com.saldoclaro.finance.BudgetScreenTest --no-daemon --rerun-tasks --no-build-cache` → 5/5, `BUILD SUCCESSFUL` on `2510ERA8BG - 16`.
+- Full JVM: same required environment cleanup with `bash gradlew testDebugUnitTest --no-daemon --rerun-tasks --no-build-cache` → 26/26, `BUILD SUCCESSFUL`.
+- Android-test compilation: same required environment cleanup with `bash gradlew compileDebugAndroidTestKotlin --no-daemon --rerun-tasks --no-build-cache` → `BUILD SUCCESSFUL`.
+- Runtime harness: exact preflight reported `c0e19fe4 device`, product `flourite_global`, model `2510ERA8BG`, Android `16`; full `connectedDebugAndroidTest` → 20/20, `BUILD SUCCESSFUL`. The later duplicate Dashboard-only invocation was not rerun after the phone disconnected; its test source compiled and the already-covered final full suite passed before that duplicate was removed.
+- Resource audit: only `app/src/main/res/values/strings.xml` and `colors.xml` exist; no `values-*` locale directory; modified production UI has no direct `Text("...")` or hard-coded accessibility copy; typed UI errors remain resource-backed.
+- Rollback boundary: revert only PR3C hunks in `BudgetScreen.kt`, `BudgetViewModel.kt`, `SaldoClaroNavHost.kt`, `values/strings.xml`, `BudgetScreenTest.kt`, and the PR3C task/progress entries; preserve PR1–PR3B code, data, schema, and stash state.
+
+### PR3C Files Changed
+
+- `app/src/main/java/com/saldoclaro/finance/feature/budgets/BudgetScreen.kt`
+- `app/src/main/java/com/saldoclaro/finance/feature/budgets/BudgetViewModel.kt`
+- `app/src/main/java/com/saldoclaro/finance/navigation/SaldoClaroNavHost.kt`
+- `app/src/main/res/values/strings.xml`
+- `app/src/androidTest/java/com/saldoclaro/finance/BudgetScreenTest.kt`
+- `openspec/changes/manage-monthly-budget-limits/tasks.md`
+## Focused Remediation — MB-5b — `final-sdd-verification-v2-refresh`
+- Hybrid apply progress; tasks remain 15/15 checked unchanged; delivery remains `auto-chain`/`stacked-to-main`; failed evidence revision is `sha256:c9d9fa80afce42088f0b481f16d70b788f5dbcc4de78e107a947654bc7fca9d2`.
+| Task | Test File | Layer | Safety Net | RED | GREEN | TRIANGULATE | REFACTOR |
+|---|---|---|---|---|---|---|---|
+| MB-5b | `BudgetViewModelTest.kt` | Unit | 5/5 baseline | New open-target/Idle assertion: exit 1, 5 completed, 1 failed with stale `Editing` | Final focused run: exit 0, 5/5 | Existing stale-target guard ran in the same suite; no extra regression added to preserve smallest scope | Minimal 6-line production correction; focused rerun remained 5/5 |
+| Evidence | Result |
+|---|---|
+| Focused `source /home/juanka/.local/share/finanzasapp-android-validation/environment.sh && unset ADB_SERVER_SOCKET ANDROID_ADB_SERVER_ADDRESS ANDROID_ADB_SERVER_PORT ANDROID_SERIAL && bash gradlew testDebugUnitTest --tests '*BudgetViewModelTest' --no-daemon --rerun-tasks --no-build-cache` → 5/5; runtime `N/A` — direct JVM ViewModel state transition, connected instrumentation prohibited; full `bash gradlew testDebugUnitTest --no-daemon --rerun-tasks --no-build-cache` → 26/26; `bash gradlew compileDebugAndroidTestKotlin --no-daemon --rerun-tasks --no-build-cache` → `BUILD SUCCESSFUL`; `git diff --check origin/main --` → clean; candidate `400/400`; rollback only the MB-5b hunks in `BudgetViewModel.kt` and `BudgetViewModelTest.kt`. |
+- Fresh evidence preimage: `change=manage-monthly-budget-limits|workspace=/home/juanka/dev/finanzasApp|work_unit=final-sdd-verification-v2-refresh|failed_evidence_revision=sha256:c9d9fa80afce42088f0b481f16d70b788f5dbcc4de78e107a947654bc7fca9d2|requirement=MB-5b|tasks=15/15|focused=5/5|red=exit1,5_completed,1_failed,actual_Editing|green=exit0,5/5|full_jvm=exit0,26/26|android_test_compile=exit0,BUILD_SUCCESSFUL|diff_check=exit0|tracked_candidate=400/400|runtime=N/A_viewmodel_state_transition_no_connected_instrumentation|rollback=two_MB-5b_hunks_in_BudgetViewModel.kt_and_BudgetViewModelTest.kt`
+- `evidence_revision=sha256:4c63acb08feff3b29564ff1bd601b6c5b6cb0de2a9b5c3e7bf621fa6812cfd44`; parent owns native settlement; correction state no longer matches the failed revision.
