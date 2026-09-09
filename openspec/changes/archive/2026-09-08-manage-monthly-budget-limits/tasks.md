@@ -43,16 +43,16 @@ Chain strategy: stacked-to-main
 
 ## Phase 3C: Compose Management UI (PR3C)
 
-- [ ] 3C.1 **RED** — Add failing `BudgetScreenTest.kt`/`DashboardScreenTest.kt` cases for card tap, amount-only edit, exact category/month delete confirmation, archived delete-only mode, no-limit visibility, and Spanish semantics.
-- [ ] 3C.2 **GREEN** — Wire `BudgetScreen.kt`, `SaldoClaroNavHost.kt`, `BudgetViewModel.kt`, and `strings.xml` for card/dialog management, cancellation/recovery, and Spanish visible/accessibility copy.
-- [ ] 3C.3 **REFACTOR/VERIFICATION** — Run final regression/resource audit for exact selectors, no English fallback/raw errors, and JVM/Android-test compilation.
+- [x] 3C.1 **RED** — Add failing `BudgetScreenTest.kt`/`DashboardScreenTest.kt` cases for card tap, amount-only edit, exact category/month delete confirmation, archived delete-only mode, no-limit visibility, and Spanish semantics.
+- [x] 3C.2 **GREEN** — Wire `BudgetScreen.kt`, `SaldoClaroNavHost.kt`, `BudgetViewModel.kt`, and `strings.xml` for card/dialog management, cancellation/recovery, and Spanish visible/accessibility copy.
+- [x] 3C.3 **REFACTOR/VERIFICATION** — Run final regression/resource audit for exact selectors, no English fallback/raw errors, and JVM/Android-test compilation.
 
 ### Legacy Mapping
 
 - `3.1` → PR3A (`3A.1–3A.3`), complete.
 - `3.2` → PR3B (`3B.1–3B.3`), complete.
-- `3.3` → PR3C (`3C.1–3C.3`), pending.
+- `3.3` → PR3C (`3C.1–3C.3`), complete.
 
-Next: PR3C / 3C.1; PR3A and PR3B complete, PR3C pending.
+Next: PR3C complete; PR3A, PR3B, and PR3C complete.
 
 Threat matrix: N/A; no threat-specific RED tasks apply.
