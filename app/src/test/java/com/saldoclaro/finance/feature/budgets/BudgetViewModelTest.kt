@@ -117,9 +117,11 @@ class BudgetViewModelTest {
         val source = TestMonthSource(localCurrentMonth)
         val viewModel = viewModel(transactions, budgets, source)
 
+        viewModel.openTarget(BudgetTarget("active", localCurrentMonth, 5_000L))
         source.advance(next)
         source.refresh()
 
+        assertEquals(BudgetMutationState.Idle, viewModel.mutationState.value)
         val progress = content(viewModel.state.value).progress.associateBy { it.categoryId }
         assertProgress(progress.getValue("active"), BudgetState.UNDER, 5_000L, 2_000L, 3_000L)
         assertProgress(progress.getValue("archived"), BudgetState.NO_BUDGET, null, 1_000L, null)

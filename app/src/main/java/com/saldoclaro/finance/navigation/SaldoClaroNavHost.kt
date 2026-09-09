@@ -108,7 +108,7 @@ fun SaldoClaroNavHost(container: AppContainer) {
                 )
             }
             composable("categories") { CategoryScreen(container.categoryViewModel) }
-            composable("budgets") { BudgetScreen(container.budgetViewModel, activeCategories) }
+            composable("budgets") { BudgetScreen(container.budgetViewModel, allCategories) }
         }
     }
 }
