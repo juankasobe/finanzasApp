@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -16,6 +17,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Add
 import androidx.compose.material.icons.outlined.Insights
 import androidx.compose.material.icons.outlined.KeyboardArrowDown
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -24,6 +26,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -33,6 +36,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import com.saldoclaro.finance.R
@@ -50,12 +55,19 @@ import com.saldoclaro.finance.core.designsystem.RetryableErrorState
 import com.saldoclaro.finance.core.designsystem.categoryPresentationName
 import com.saldoclaro.finance.core.designsystem.formatCents
 import com.saldoclaro.finance.data.local.CategoryEntity
+import com.saldoclaro.finance.domain.repository.BudgetTarget
 import com.saldoclaro.finance.domain.usecase.BudgetProgressItem
 import com.saldoclaro.finance.domain.usecase.BudgetState
+import java.math.BigDecimal
+import java.time.YearMonth
+import java.time.format.DateTimeFormatter
+import java.util.Locale
 
 @Composable
 fun BudgetScreen(viewModel: BudgetViewModel, categories: List<CategoryEntity>) {
     val state by viewModel.state.collectAsState()
+    val mutation by viewModel.mutationState.collectAsState()
+    val month by viewModel.currentMonth.collectAsState()
     val activeCategories = categories.filterNot { it.isArchived }
     var category by remember { mutableStateOf<CategoryEntity?>(null) }
     var limit by remember { mutableStateOf("") }
@@ -83,10 +95,28 @@ fun BudgetScreen(viewModel: BudgetViewModel, categories: List<CategoryEntity>) {
             onSave = { category?.let { viewModel.saveLimit(it.id, limit) } },
         )
         when (val current = state) {
-            is BudgetUiState.Content -> BudgetProgress(current.progress, categories)
+            is BudgetUiState.Content -> BudgetProgress(current.progress, categories, month) { categoryId, limitCents ->
+                viewModel.openTarget(categoryId, limitCents)
+            }
             is BudgetUiState.Validation -> ValidationMessage()
             is BudgetUiState.Error -> RetryableErrorState(current.reason, current.canRetry, viewModel::retry)
         }
+    }
+    mutation.targetOrNull()?.let { target ->
+        val category = categories.firstOrNull { it.id == target.categoryId }
+        BudgetManagementDialog(
+            mutation = mutation,
+            target = target,
+            categoryName = category?.let { categoryPresentationName(it.id, it.name) }
+                ?: stringResource(R.string.category_unknown),
+            archived = category?.isArchived == true,
+            onSubmitEdit = viewModel::submitEdit,
+            onRequestDelete = viewModel::requestDelete,
+            onConfirmDelete = viewModel::confirmDelete,
+            onCancelDelete = viewModel::cancelDelete,
+            onCancel = viewModel::cancelManagement,
+            onRetry = viewModel::retry,
+        )
     }
 }
 
@@ -155,7 +185,12 @@ private fun BudgetEditor(
 }
 
 @Composable
-private fun BudgetProgress(progress: List<BudgetProgressItem>, categories: List<CategoryEntity>) {
+private fun BudgetProgress(
+    progress: List<BudgetProgressItem>,
+    categories: List<CategoryEntity>,
+    month: YearMonth,
+    onOpen: (String, Long) -> Unit,
+) {
     Text(text = stringResource(R.string.budget_overview), style = MaterialTheme.typography.titleMedium)
     if (progress.isEmpty()) {
         FinanceEmptyState(
@@ -173,6 +208,8 @@ private fun BudgetProgress(progress: List<BudgetProgressItem>, categories: List<
         BudgetProgressCard(
             item = item,
             categoryName = categoryPresentationName(item.categoryId, categoryNames[item.categoryId]),
+            month = month,
+            onOpen = onOpen,
         )
     }
 }
@@ -236,9 +273,21 @@ private fun BudgetSummary(progress: List<BudgetProgressItem>) {
 }
 
 @Composable
-private fun BudgetProgressCard(item: BudgetProgressItem, categoryName: String) {
+private fun BudgetProgressCard(
+    item: BudgetProgressItem,
+    categoryName: String,
+    month: YearMonth,
+    onOpen: (String, Long) -> Unit,
+) {
     val status = item.statusPresentation()
-    FinanceCard {
+    val limitCents = item.limitCents
+    val cardModifier = if (limitCents == null) Modifier else {
+        val description = stringResource(R.string.budget_manage_description, categoryName, month.spanishLabel())
+        Modifier
+            .clickable { onOpen(item.categoryId, limitCents) }
+            .semantics { contentDescription = description }
+    }
+    FinanceCard(modifier = cardModifier) {
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(10.dp),
@@ -288,6 +337,94 @@ private fun BudgetProgressCard(item: BudgetProgressItem, categoryName: String) {
         }
     }
 }
+
+@Composable
+private fun BudgetManagementDialog(
+    mutation: BudgetMutationState,
+    target: BudgetTarget,
+    categoryName: String,
+    archived: Boolean,
+    onSubmitEdit: (String) -> Unit,
+    onRequestDelete: () -> Unit,
+    onConfirmDelete: () -> Unit,
+    onCancelDelete: () -> Unit,
+    onCancel: () -> Unit,
+    onRetry: () -> Unit,
+) {
+    val editing = mutation is BudgetMutationState.Editing ||
+        (mutation is BudgetMutationState.Error && !mutation.deleting)
+    val running = mutation is BudgetMutationState.Running
+    var amount by remember(target) { mutableStateOf(target.openedLimitCents.toEditAmount()) }
+    val month = target.month.spanishLabel()
+    AlertDialog(
+        onDismissRequest = when {
+            mutation is BudgetMutationState.ConfirmDelete -> onCancelDelete
+            running -> ({})
+            else -> onCancel
+        },
+        title = {
+            Text(stringResource(if (mutation is BudgetMutationState.ConfirmDelete) {
+                R.string.budget_delete_title
+            } else R.string.budget_management_title))
+        },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Text(stringResource(R.string.budget_management_target, categoryName, month))
+                if (archived && editing) Text(stringResource(R.string.budget_management_archived))
+                if (editing && !archived) {
+                    OutlinedTextField(
+                        value = amount,
+                        onValueChange = { amount = it },
+                        label = { Text(stringResource(R.string.budget_amount_label)) },
+                        singleLine = true,
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                    )
+                    TextButton(onClick = onRequestDelete) { Text(stringResource(R.string.budget_delete_limit)) }
+                }
+                if (mutation is BudgetMutationState.ConfirmDelete) {
+                    Text(stringResource(R.string.budget_delete_message, categoryName, month))
+                }
+                if (mutation is BudgetMutationState.Running) {
+                    Text(stringResource(R.string.budget_saving))
+                }
+                if (mutation is BudgetMutationState.Error) {
+                    Text(stringResource(mutation.reason.resourceId))
+                }
+            }
+        },
+        confirmButton = {
+            when {
+                mutation is BudgetMutationState.ConfirmDelete -> TextButton(onClick = onConfirmDelete) { Text(stringResource(R.string.action_delete)) }
+                running -> TextButton(onClick = {}, enabled = false) { Text(stringResource(R.string.budget_saving)) }
+                mutation is BudgetMutationState.Error && mutation.deleting -> TextButton(onClick = onRetry) { Text(stringResource(R.string.action_retry)) }
+                archived -> TextButton(onClick = onRequestDelete) { Text(stringResource(R.string.budget_delete_limit)) }
+                editing -> TextButton(onClick = { onSubmitEdit(amount) }) { Text(stringResource(R.string.budget_save_changes)) }
+                else -> Unit
+            }
+        },
+        dismissButton = {
+            if (!running) {
+                TextButton(onClick = if (mutation is BudgetMutationState.ConfirmDelete) onCancelDelete else onCancel) {
+                    Text(stringResource(R.string.action_cancel))
+                }
+            }
+        },
+    )
+}
+
+private fun BudgetMutationState.targetOrNull(): BudgetTarget? = when (this) {
+    BudgetMutationState.Idle -> null
+    is BudgetMutationState.Editing -> target
+    is BudgetMutationState.ConfirmDelete -> target
+    is BudgetMutationState.Running -> target
+    is BudgetMutationState.Error -> target
+}
+
+private val SPANISH_MONTH_FORMAT = DateTimeFormatter.ofPattern("MMMM 'de' yyyy", Locale.forLanguageTag("es-ES"))
+
+private fun YearMonth.spanishLabel() = atDay(1).format(SPANISH_MONTH_FORMAT)
+
+private fun Long.toEditAmount() = BigDecimal.valueOf(this, 2).toPlainString()
 
 @Composable
 private fun ValidationMessage() {

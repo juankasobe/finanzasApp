@@ -69,6 +69,16 @@
     <string name="budget_spent">Gastado %1$s</string>
     <string name="budget_no_monthly_limit">Sin límite mensual</string>
     <string name="budget_monthly_limit">Límite mensual</string>
+    <string name="budget_manage_description">Gestionar límite de %1$s de %2$s</string>
+    <string name="budget_management_title">Gestionar límite mensual</string>
+    <string name="budget_management_target">%1$s · %2$s</string>
+    <string name="budget_amount_label">Importe</string>
+    <string name="budget_save_changes">Guardar cambios</string>
+    <string name="budget_delete_limit">Eliminar límite</string>
+    <string name="budget_delete_title">¿Eliminar este límite mensual?</string>
+    <string name="budget_delete_message">Se eliminará el límite de %1$s para %2$s. Tus transacciones y otros meses se conservarán.</string>
+    <string name="budget_management_archived">Esta categoría está archivada. Solo puedes eliminar su límite.</string>
+    <string name="budget_saving">Guardando cambios…</string>
     <string name="transaction_screen_title">Movimientos</string>
     <string name="transaction_screen_subtitle">Registra y revisa tu actividad mensual</string>
     <string name="transaction_new_title">Nueva transacción</string>

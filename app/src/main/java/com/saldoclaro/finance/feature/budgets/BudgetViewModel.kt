@@ -15,6 +15,7 @@ import com.saldoclaro.finance.domain.usecase.BudgetState
 import com.saldoclaro.finance.domain.usecase.currentMonth
 import com.saldoclaro.finance.domain.usecase.projectBudgetProgress
 import java.time.Clock
+import java.time.YearMonth
 import java.time.ZoneId
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineDispatcher
@@ -42,8 +43,8 @@ sealed interface BudgetMutationState {
     data object Idle : BudgetMutationState
     data class Editing(val target: BudgetTarget) : BudgetMutationState
     data class ConfirmDelete(val target: BudgetTarget) : BudgetMutationState
-    data class Running(val target: BudgetTarget) : BudgetMutationState
-    data class Error(val target: BudgetTarget, val reason: UiErrorKey) : BudgetMutationState
+    data class Running(val target: BudgetTarget, val deleting: Boolean = false) : BudgetMutationState
+    data class Error(val target: BudgetTarget, val reason: UiErrorKey, val deleting: Boolean = false) : BudgetMutationState
 }
 
 private data class Mutation(val target: BudgetTarget, val limitCents: Long? = null)
@@ -67,6 +68,7 @@ class BudgetViewModel(
     private var pendingMutation: Mutation? = null
     val state: StateFlow<BudgetUiState> = _state.asStateFlow()
     val mutationState: StateFlow<BudgetMutationState> = _mutationState.asStateFlow()
+    val currentMonth: StateFlow<YearMonth> = monthSource.month
 
     init {
         observeMonth()
@@ -87,10 +89,18 @@ class BudgetViewModel(
         _mutationState.value = BudgetMutationState.Editing(target)
     }
 
+    fun openTarget(categoryId: String, limitCents: Long) =
+        openTarget(BudgetTarget(categoryId, monthSource.month.value, limitCents))
+
     fun submitEdit(limit: String) {
-        val target = (_mutationState.value as? BudgetMutationState.Editing)?.target ?: return
+        val target = when (val current = _mutationState.value) {
+            is BudgetMutationState.Editing -> current.target
+            is BudgetMutationState.Error -> if (!current.deleting) current.target else return
+            else -> return
+        }
         val cents = limit.toPositiveCentsOrNull()
         if (cents == null) {
+            pendingMutation = null
             _mutationState.value = BudgetMutationState.Error(target, UiErrorKey.INVALID_AMOUNT)
             return
         }
@@ -98,8 +108,10 @@ class BudgetViewModel(
     }
 
     fun requestDelete() {
-        (_mutationState.value as? BudgetMutationState.Editing)?.let {
-            _mutationState.value = BudgetMutationState.ConfirmDelete(it.target)
+        when (val current = _mutationState.value) {
+            is BudgetMutationState.Editing -> _mutationState.value = BudgetMutationState.ConfirmDelete(current.target)
+            is BudgetMutationState.Error -> if (!current.deleting) _mutationState.value = BudgetMutationState.ConfirmDelete(current.target)
+            else -> Unit
         }
     }
 
@@ -134,8 +146,14 @@ class BudgetViewModel(
         observation?.cancel()
         observation = viewModelScope.launch(dispatcher) {
             try {
+                var observedMonth = monthSource.month.value
                 monthSource.month
                     .flatMapLatest { month -> flow {
+                        if (month != observedMonth) {
+                            pendingMutation = null
+                            _mutationState.value = BudgetMutationState.Idle
+                            observedMonth = month
+                        }
                         budgetRepository.rollover(month.minusMonths(1), month).getOrThrow()
                         emitAll(combine(transactionRepository.observeMonth(month), budgetRepository.observeMonth(month)) { transactions, budgets ->
                             projectBudgetProgress(transactions, budgets)
@@ -156,10 +174,10 @@ class BudgetViewModel(
                 _mutationState.value = BudgetMutationState.Error(command.target, UiErrorKey.TARGET_UNAVAILABLE)
                 return@launch
             }
-            _mutationState.value = BudgetMutationState.Running(command.target)
+            _mutationState.value = BudgetMutationState.Running(command.target, command.limitCents == null)
             execute(command).fold(
                 onSuccess = { pendingMutation = null; _mutationState.value = BudgetMutationState.Idle },
-                onFailure = { _mutationState.value = BudgetMutationState.Error(command.target, it.toUiErrorKey()) },
+                onFailure = { _mutationState.value = BudgetMutationState.Error(command.target, it.toUiErrorKey(), command.limitCents == null) },
             )
         }
     }
