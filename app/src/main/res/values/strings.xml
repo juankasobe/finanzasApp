@@ -16,6 +16,10 @@
     <string name="action_retry">Reintentar</string>
     <string name="action_cancel">Cancelar</string>
     <string name="action_delete">Eliminar</string>
+    <string name="action_edit">Editar</string>
+    <string name="action_archive">Archivar</string>
+    <string name="action_save">Guardar</string>
+    <string name="action_close">Cerrar</string>
     <string name="action_select_category">Seleccionar categoría</string>
     <string name="transaction_delete">Eliminar transacción</string>
     <string name="category_archive">Archivar %1$s</string>
@@ -104,4 +108,11 @@
     <string name="category_builtin">Categoría integrada</string>
     <string name="category_custom">Categoría personalizada</string>
     <string name="category_archived">Archivada</string>
+    <string name="category_manage">Gestionar %1$s</string>
+    <string name="category_edit_title">Editar categoría</string>
+    <string name="category_delete_title">¿Eliminar esta categoría?</string>
+    <string name="category_delete_message">Se eliminará %1$s de forma permanente. Esta acción no se puede deshacer.</string>
+    <string name="category_in_use_title">Esta categoría tiene historial</string>
+    <string name="category_in_use_message">No se puede eliminar porque esta categoría forma parte de tu historial financiero.</string>
+    <string name="category_error_title">No se pudo gestionar la categoría</string>
 </resources>
