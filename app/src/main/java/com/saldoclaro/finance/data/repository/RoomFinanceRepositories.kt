@@ -21,19 +21,36 @@ import java.util.UUID
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 
-class RoomFinanceRepositories(private val database: FinanceDatabase) : TransactionRepository {
-    fun observeCategories(): Flow<List<CategoryEntity>> = database.categoryDao().observeAll()
+class RoomFinanceRepositories(private val database: FinanceDatabase) : TransactionRepository, CategoryRepository {
+    override fun observeCategories(): Flow<List<CategoryEntity>> = database.categoryDao().observeAll()
 
     override fun observeMonth(month: YearMonth): Flow<List<Transaction>> =
         database.transactionDao().observeMonth(month.atDay(1), month.atEndOfMonth()).map { it.map(TransactionEntity::toTransaction) }
 
-    suspend fun createCategory(name: String): Result<CategoryEntity> = databaseResult {
+    override suspend fun createCategory(name: String): Result<CategoryEntity> = databaseResult {
         val normalized = normalizeCategoryName(name)
         CategoryEntity("custom-$normalized", name.trim(), normalized, false).also { database.categoryDao().insert(it) }
     }
 
-    suspend fun archiveCustomCategory(id: String): Result<Unit> = databaseResult {
+    override suspend fun renameCustomCategory(id: String, name: String): Result<Unit> = databaseResult {
+        val normalized = normalizeCategoryName(name)
+        check(database.categoryDao().renameCustom(id, name.trim(), normalized) == 1) { "Category cannot be renamed" }
+    }
+
+    override suspend fun archiveCustomCategory(id: String): Result<Unit> = databaseResult {
         check(database.categoryDao().archiveCustom(id) == 1) { "Category cannot be archived" }
+    }
+
+    override suspend fun deleteCustomCategory(id: String): Result<CategoryDeleteOutcome> = databaseResult {
+        database.withTransaction {
+            check(database.categoryDao().find(id)?.isBuiltIn == false) { "Category cannot be deleted" }
+            val referenced = database.transactionDao().countByCategory(id) > 0 ||
+                database.budgetDao().countByCategory(id) > 0
+            if (referenced) CategoryDeleteOutcome.InUse else {
+                check(database.categoryDao().deleteCustom(id) == 1) { "Category cannot be deleted" }
+                CategoryDeleteOutcome.Deleted
+            }
+        }
     }
 
     suspend fun saveTransaction(id: String, categoryId: String, amountCents: Long, localDate: LocalDate): Result<Unit> = databaseResult {
