@@ -4,6 +4,7 @@ import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.saldoclaro.finance.data.repository.RoomBudgetRepository
 import com.saldoclaro.finance.data.repository.RoomFinanceRepositories
+import com.saldoclaro.finance.data.repository.CategoryDeleteOutcome
 import com.saldoclaro.finance.domain.repository.BudgetMutationError
 import com.saldoclaro.finance.domain.repository.BudgetMutationException
 import com.saldoclaro.finance.domain.repository.BudgetTarget
@@ -92,6 +93,76 @@ class FinanceDatabaseTest {
 
         assertTrue(result.isFailure)
         assertFalse(database.transactionDao().observeAll().first().any { it.id == "new-trip" })
+    }
+
+    @Test
+    fun renamePreservesArchivedCategoryAndJoinedHistory() = runBlocking {
+        val category = repositories.createCategory("Travel").getOrThrow()
+        database.transactionDao().insert(
+            TransactionEntity("trip", "EXPENSE", 4_200, category.id, LocalDate.of(2026, 8, 1)),
+        )
+        insertBudget(category.id, targetMonth, 25_000)
+        repositories.archiveCustomCategory(category.id).getOrThrow()
+
+        repositories.renameCustomCategory(category.id, "Trips").getOrThrow()
+
+        assertEquals(category.id, database.categoryDao().find(category.id)?.id)
+        assertTrue(database.categoryDao().find(category.id)?.isArchived == true)
+        assertEquals("Trips", database.transactionDao().observeAll().first().single().categoryName)
+        assertEquals(25_000L, database.budgetDao().find(category.id, targetMonth.toString())?.limitCents)
+    }
+
+    @Test
+    fun blankAndDuplicateRenameAreRejected() = runBlocking {
+        val travel = repositories.createCategory("Travel").getOrThrow()
+        repositories.createCategory("Coffee").getOrThrow()
+
+        assertTrue(repositories.renameCustomCategory(travel.id, " ").isFailure)
+        assertTrue(repositories.renameCustomCategory(travel.id, " coffee ").isFailure)
+        assertEquals("Travel", database.categoryDao().find(travel.id)?.name)
+    }
+
+    @Test
+    fun transactionReferenceBlocksCategoryDeleteAndPreservesHistory() = runBlocking {
+        val category = repositories.createCategory("Travel").getOrThrow()
+        database.transactionDao().insert(
+            TransactionEntity("trip", "EXPENSE", 4_200, category.id, LocalDate.of(2026, 8, 1)),
+        )
+
+        val outcome = repositories.deleteCustomCategory(category.id).getOrThrow()
+
+        assertEquals(CategoryDeleteOutcome.InUse, outcome)
+        assertEquals(category.id, database.categoryDao().find(category.id)?.id)
+        assertEquals("trip", database.transactionDao().observeAll().first().single().id)
+    }
+
+    @Test
+    fun budgetReferenceBlocksCategoryDeleteAndPreservesBudget() = runBlocking {
+        val category = repositories.createCategory("Travel").getOrThrow()
+        insertBudget(category.id, targetMonth, 25_000)
+
+        val outcome = repositories.deleteCustomCategory(category.id).getOrThrow()
+
+        assertEquals(CategoryDeleteOutcome.InUse, outcome)
+        assertEquals(category.id, database.categoryDao().find(category.id)?.id)
+        assertEquals(25_000L, database.budgetDao().find(category.id, targetMonth.toString())?.limitCents)
+    }
+
+    @Test
+    fun unusedCustomCategoryCanBeDeleted() = runBlocking {
+        val category = repositories.createCategory("Travel").getOrThrow()
+        repositories.archiveCustomCategory(category.id).getOrThrow()
+
+        assertEquals(CategoryDeleteOutcome.Deleted, repositories.deleteCustomCategory(category.id).getOrThrow())
+        assertEquals(null, database.categoryDao().find(category.id))
+    }
+
+    @Test
+    fun builtInCategoryMutationsAreRefused() = runBlocking {
+        assertTrue(repositories.renameCustomCategory("builtin-groceries", "Food").isFailure)
+        assertTrue(repositories.archiveCustomCategory("builtin-groceries").isFailure)
+        assertTrue(repositories.deleteCustomCategory("builtin-groceries").isFailure)
+        assertEquals("Supermercado", database.categoryDao().find("builtin-groceries")?.name)
     }
 
     @Test

@@ -13,7 +13,10 @@ interface CategoryDao {
     @Query("SELECT * FROM categories WHERE id = :id") suspend fun find(id: String): CategoryEntity?
     @Insert(onConflict = OnConflictStrategy.ABORT) suspend fun insert(category: CategoryEntity)
     @Insert(onConflict = OnConflictStrategy.ABORT) suspend fun insertAll(categories: List<CategoryEntity>)
+    @Query("UPDATE categories SET name = :name, normalizedName = :normalizedName WHERE id = :id AND isBuiltIn = 0")
+    suspend fun renameCustom(id: String, name: String, normalizedName: String): Int
     @Query("UPDATE categories SET isArchived = 1 WHERE id = :id AND isBuiltIn = 0") suspend fun archiveCustom(id: String): Int
+    @Query("DELETE FROM categories WHERE id = :id AND isBuiltIn = 0") suspend fun deleteCustom(id: String): Int
 }
 
 @Dao
@@ -22,6 +25,7 @@ interface TransactionDao {
     @Query("SELECT * FROM transactions WHERE localDate BETWEEN :start AND :end ORDER BY localDate")
     fun observeMonth(start: LocalDate, end: LocalDate): Flow<List<TransactionEntity>>
     @Query("DELETE FROM transactions WHERE id = :id") suspend fun delete(id: String): Int
+    @Query("SELECT COUNT(*) FROM transactions WHERE categoryId = :categoryId") suspend fun countByCategory(categoryId: String): Int
     @Query("SELECT transactions.id, categories.name AS categoryName FROM transactions JOIN categories ON categoryId = categories.id ORDER BY localDate")
     fun observeAll(): Flow<List<TransactionWithCategory>>
 }
@@ -42,6 +46,8 @@ interface BudgetDao {
 
     @Query("DELETE FROM budgets WHERE categoryId = :categoryId AND monthKey = :monthKey AND limitCents = :expectedLimitCents")
     suspend fun delete(categoryId: String, monthKey: String, expectedLimitCents: Long): Int
+
+    @Query("SELECT COUNT(*) FROM budgets WHERE categoryId = :categoryId") suspend fun countByCategory(categoryId: String): Int
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun upsert(budget: BudgetEntity)
